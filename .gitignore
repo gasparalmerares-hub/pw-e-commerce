@@ -40,3 +40,6 @@ next-env.d.ts
 
 # backup local de la migracion de Cloudinary
 migracion-cloudinary-backup.json
+
+# credenciales de la entrega (NUNCA commitear)
+variables.md
