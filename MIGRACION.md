@@ -9,8 +9,8 @@ Seguí los pasos **en orden**: algunos dependen de los anteriores.
 |---|---|---|
 | Supabase (base de datos) | Transferir | Nativo, desde el panel |
 | Cloudinary (105 fotos) | Migrar | Script `scripts/migrar-cloudinary.py` |
-| Vercel (hosting) | Transferir | Nativo, desde el panel |
-| Dominio `camisetaszeus.com` | Transferir o recomprar | Ver paso 5 |
+| Vercel (hosting) | Proyecto nuevo del cliente | Importar el repo (Hobby no permite transferir) |
+| Dominio `camisetaszeus.com` | Apuntar al proyecto nuevo | Ver paso 6 |
 | GitHub (repo) | Transferir | Nativo, desde el panel |
 | MercadoPago | Nada | Ya es del cliente |
 | Resend | Nada | Ya es del cliente |
@@ -93,38 +93,50 @@ En el plan gratuito una organización admite 2 proyectos activos.
 - Para deshacer: `python3 scripts/migrar-cloudinary.py --revertir`
 - **No borres tu cuenta de Cloudinary** hasta confirmar que todo se ve bien.
 
-## Paso 4 — Vercel
+## Paso 4 — GitHub
 
-- [ ] Project → Settings → Advanced → **Transfer Project** → cuenta del cliente
-- [ ] El cliente acepta la transferencia desde su cuenta
-- [ ] Verificar que las variables de entorno hayan quedado (Settings → Environment Variables)
-- [ ] Si falta alguna, cargarla con los valores del paso 1 → **Redeploy**
+Vercel Hobby no permite transferir proyectos entre cuentas gratuitas (solo a
+equipos, que son Pro). El cliente va a importar el repo en su propio Vercel,
+así que el repo tiene que estar en su cuenta **personal** de GitHub (no en
+una organización).
+
+- [ ] GitHub → repo → Settings → **Transfer ownership** → usuario del cliente
+- [ ] El cliente acepta la transferencia
+- [ ] Si vas a seguir haciendo cambios: que te agregue como **colaborador**
+
+## Paso 5 — Vercel (proyecto nuevo del cliente)
+
+- [ ] El cliente: Vercel → **Add New → Project** → importar `pw-e-commerce`
+- [ ] **Antes de Deploy**, cargar todas las variables del paso 1
+      (con los valores nuevos de Cloudinary del paso 3)
+- [ ] Deploy
+- [ ] Probar en la URL `*.vercel.app` que asigna Vercel: fotos, login del
+      admin, subir una foto. La web real sigue andando desde el proyecto
+      viejo mientras tanto.
 - [ ] Verificar que el cron `/api/keepalive` aparezca en Settings → Cron Jobs
 
-**Alternativa** si la transferencia da problemas: el cliente crea un proyecto
-nuevo importando el repo, carga todas las variables del paso 1 y después se
-mueve el dominio.
+## Paso 6 — Dominio
 
-## Paso 5 — Dominio
+`camisetaszeus.com` se compró a través de Vercel, así que el registro está en
+la cuenta del desarrollador. Hacerlo en un horario tranquilo: puede haber
+unos minutos de corte.
 
-`camisetaszeus.com` se compró a través de Vercel, así que el registro está en tu cuenta.
+- [ ] Proyecto **viejo**: Settings → Domains → quitar `camisetaszeus.com`
+- [ ] Proyecto **del cliente**: Settings → Domains → agregar `camisetaszeus.com`
+- [ ] Vercel pide verificarlo con un registro TXT: agregarlo desde la cuenta
+      donde está el DNS del dominio (la del desarrollador)
+- [ ] Confirmar que `camisetaszeus.com` cargue desde el proyecto nuevo
+- [ ] Pausar o borrar el proyecto viejo
 
-- [ ] Opción recomendada: moverlo a la cuenta de Vercel del cliente
-      (consultar con soporte de Vercel si no aparece junto con el proyecto)
-- [ ] Opción alternativa: dejarlo vencer y que el cliente lo compre.
-      **Riesgo:** al vencer, cualquiera lo puede comprar. Coordinar para que lo
-      compre el mismo día.
+MercadoPago (webhook), Supabase y Resend siguen funcionando sin cambios
+porque dependen del dominio, no del proyecto de Vercel.
 
-Importante: en el DNS del dominio están los registros de **Resend**
-(`resend._domainkey`, `send` MX y TXT, `_dmarc`). Si el dominio o el DNS
-cambian de cuenta, hay que volver a cargarlos y re-verificar en Resend,
-si no dejan de salir los mails de confirmación.
-
-## Paso 6 — GitHub
-
-- [ ] Repo → Settings → **Transfer ownership** → cuenta del cliente
-- [ ] En Vercel (ya del cliente): Settings → Git → reconectar el repo transferido
-- [ ] Hacer un push de prueba y confirmar que Vercel deploya solo
+**Registro del dominio:** sigue en la cuenta del desarrollador. Para
+entregarlo del todo hay que moverlo aparte. Si se deja vencer para que el
+cliente lo compre, hay riesgo de que otro lo compre primero; coordinar para
+que lo compre el mismo día. En el DNS están los registros de **Resend**
+(`resend._domainkey`, `send` MX y TXT, `_dmarc`): si el DNS cambia de cuenta
+hay que volver a cargarlos y re-verificar en Resend.
 
 ## Paso 7 — El cliente rota los secretos
 
