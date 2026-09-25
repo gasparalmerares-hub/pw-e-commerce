@@ -37,3 +37,6 @@ next-env.d.ts
 
 # Claude Code
 .claude
+
+# backup local de la migracion de Cloudinary
+migracion-cloudinary-backup.json
