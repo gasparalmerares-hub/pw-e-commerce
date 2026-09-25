@@ -1,8 +1,22 @@
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = "https://tqpsuwbktcdoohzxjgdw.supabase.co";
-const SUPABASE_SERVICE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxcHN1d2JrdGNkb29oenhqZ2R3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzM3MTQyMSwiZXhwIjoyMDkyOTQ3NDIxfQ.YkjVgr5UWONVx8mEH4GS2D-ImaEJOnAmgIF6wg67EmU";
+import fs from "node:fs";
+import path from "node:path";
+
+// Nunca hardcodear secretos: este repo es publico.
+function env(nombre) {
+  if (process.env[nombre]) return process.env[nombre];
+  try {
+    const ruta = path.join(path.dirname(new URL(import.meta.url).pathname), "..", ".env.local");
+    for (const linea of fs.readFileSync(ruta, "utf8").split(String.fromCharCode(10))) {
+      if (linea.trim().startsWith(nombre + "=")) return linea.split("=").slice(1).join("=").trim();
+    }
+  } catch {}
+  throw new Error(`Falta ${nombre}. Definila como variable de entorno o en .env.local`);
+}
+
+const SUPABASE_URL = env("NEXT_PUBLIC_SUPABASE_URL");
+const SUPABASE_SERVICE_KEY = env("SUPABASE_SERVICE_ROLE_KEY");
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 

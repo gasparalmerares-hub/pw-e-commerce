@@ -13,8 +13,28 @@ from PIL import Image
 import urllib.request
 import json
 
-SUPABASE_URL = "https://tqpsuwbktcdoohzxjgdw.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxcHN1d2JrdGNkb29oenhqZ2R3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzM3MTQyMSwiZXhwIjoyMDkyOTQ3NDIxfQ.YkjVgr5UWONVx8mEH4GS2D-ImaEJOnAmgIF6wg67EmU"
+import os as _os
+
+def _env(nombre):
+    """Lee una credencial de las variables de entorno o de .env.local.
+    Nunca hardcodear secretos: este repo es publico."""
+    v = _os.environ.get(nombre)
+    if v:
+        return v
+    ruta = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", ".env.local")
+    try:
+        with open(ruta) as fh:
+            for linea in fh:
+                if linea.strip().startswith(nombre + "="):
+                    return linea.split("=", 1)[1].strip()
+    except FileNotFoundError:
+        pass
+    raise SystemExit(f"Falta {nombre}. Definila como variable de entorno o en .env.local")
+
+
+
+SUPABASE_URL = _env("NEXT_PUBLIC_SUPABASE_URL")
+SUPABASE_KEY = _env("SUPABASE_SERVICE_ROLE_KEY")
 
 INPUT_DIR = Path("/Users/segundo/Desktop/pw-e-commerce/public/catalogo")
 
