@@ -8,7 +8,7 @@ const CATEGORIAS = ["local", "alternativa", "training"];
 const TIPOS = ["nacion", "club"];
 
 const FORM_INICIAL = {
-  nombre: "", precio: "", stock: "0", categoria: "local",
+  nombre: "", precio: "", categoria: "local",
   tipo: "nacion", talle: [], descripcion: "",
   imagen: "", imagenEspalda: "", imagenesExtra: ["", "", "", ""],
   stockPorTalle: {}, descuentoTransferencia: "0", tipoVariante: "talle",
@@ -16,6 +16,16 @@ const FORM_INICIAL = {
 
 function formatearPrecio(precio) {
   return "$" + Number(precio).toLocaleString("es-AR");
+}
+
+// El stock total no se carga a mano: es la suma del stock de los talles
+// activos. Así nunca queda desfasado del stock por talle. Si el producto no
+// tiene stock por talle (productos viejos), se usa el stock global guardado.
+function stockTotal(p) {
+  const talles   = p.talle ?? [];
+  const porTalle = p.stock_por_talle ?? {};
+  if (!talles.some((t) => porTalle[t] !== undefined)) return Number(p.stock) || 0;
+  return talles.reduce((s, t) => s + (Number(porTalle[t]) || 0), 0);
 }
 
 function ImageUploader({ label, value, onChange }) {
@@ -161,7 +171,6 @@ export default function ProductoPanel({ tabla, titulo, seccion = "camiseta", var
     setForm({
       nombre:                 p.nombre,
       precio:                 String(p.precio),
-      stock:                  String(p.stock),
       categoria:              p.categoria,
       tipo:                   p.tipo,
       talle:                  p.talle ?? [],
@@ -238,11 +247,17 @@ export default function ProductoPanel({ tabla, titulo, seccion = "camiseta", var
     setGuardando(true);
     setError(null);
 
+    // Solo se guardan los talles activos (se descartan los de talles
+    // deseleccionados) y el stock total se calcula como su suma.
+    const stockPorTalle = Object.fromEntries(
+      form.talle.map((t) => [t, Number(form.stockPorTalle[t]) || 0])
+    );
+
     const body = {
       ...form,
       precio: parseInt(form.precio),
-      stock: parseInt(form.stock),
-      stockPorTalle: form.stockPorTalle,
+      stock: Object.values(stockPorTalle).reduce((s, n) => s + n, 0),
+      stockPorTalle,
       descuentoTransferencia: parseInt(form.descuentoTransferencia) || 0,
       imagenesExtra: form.imagenesExtra.filter(Boolean),
       seccion,
@@ -340,9 +355,9 @@ export default function ProductoPanel({ tabla, titulo, seccion = "camiseta", var
               </div>
             </div>
 
-            {/* Nombre, precio, stock */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="sm:col-span-1 flex flex-col gap-1">
+            {/* Nombre y precio (el stock se carga por talle, más abajo) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
                 <label className="text-xs text-gray-600">Nombre *</label>
                 <input
                   value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))}
@@ -356,15 +371,6 @@ export default function ProductoPanel({ tabla, titulo, seccion = "camiseta", var
                   type="number" value={form.precio}
                   onChange={e => setForm(p => ({ ...p, precio: e.target.value }))}
                   required placeholder="70000"
-                  className={inputClass}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-600">Stock</label>
-                <input
-                  type="number" value={form.stock}
-                  onChange={e => setForm(p => ({ ...p, stock: e.target.value }))}
-                  min="0" placeholder="0"
                   className={inputClass}
                 />
               </div>
@@ -455,7 +461,10 @@ export default function ProductoPanel({ tabla, titulo, seccion = "camiseta", var
             {/* Stock por variante */}
             {form.talle.length > 0 && (
               <div className="flex flex-col gap-2">
-                <label className="text-xs text-gray-600">Stock por {labelVariante}</label>
+                <label className="text-xs text-gray-600">
+                  Stock por {labelVariante}
+                  <span className="text-gray-400"> · Total: {form.talle.reduce((s, t) => s + (Number(form.stockPorTalle[t]) || 0), 0)}</span>
+                </label>
                 <div className={`grid gap-2 ${esColor ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-3 sm:grid-cols-6"}`}>
                   {form.talle.map((t) => (
                     <div key={t} className="flex flex-col gap-1 items-center">
@@ -575,8 +584,8 @@ export default function ProductoPanel({ tabla, titulo, seccion = "camiseta", var
                       Transf. −{p.descuento_transferencia}%
                     </span>
                   )}
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${p.stock > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
-                    Stock: {p.stock}
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${stockTotal(p) > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                    Stock: {stockTotal(p)}
                   </span>
                 </div>
               </div>
