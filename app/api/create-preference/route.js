@@ -30,11 +30,15 @@ export async function POST(request) {
     const { items, comprador, parches } = await request.json();
     const parchesArr = Array.isArray(parches) ? parches : [];
 
-    // Dominio canónico (sin www). Si NEXT_PUBLIC_URL quedó con www, MercadoPago
-    // recibe un redirect 307 en el webhook y NO lo sigue → el pago nunca se
-    // registra. Normalizamos para que el notification_url siempre apunte al
-    // dominio que responde 200.
-    const baseUrl = (process.env.NEXT_PUBLIC_URL ?? "").replace("://www.", "://").replace(/\/$/, "");
+    // MercadoPago NO sigue redirects en el webhook: si el notification_url
+    // apunta a un dominio que redirige (www ↔ sin www, según cómo esté
+    // configurado el dominio en Vercel), el pago nunca se registra.
+    // Usamos el host por el que entró esta request, que es justamente el que
+    // responde 200. NEXT_PUBLIC_URL queda solo como respaldo (desarrollo local).
+    const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "";
+    const baseUrl = host && !host.startsWith("localhost")
+      ? `https://${host}`
+      : (process.env.NEXT_PUBLIC_URL ?? "").replace(/\/$/, "");
 
     const precioEnvio = await getPrecioConfig("precio_envio");
     const precioEstampaUnit = parchesArr.length ? await getPrecioConfig("precio_estampa") : 0;
