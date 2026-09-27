@@ -26,7 +26,7 @@ Las variables de entorno van en `.env.local` (no se versiona). La lista completa
 ## Arquitectura
 
 **Dos tablas de productos con reglas distintas:**
-- `productos_stock` → `/stock`: envío inmediato, stock real por producto y por talle (`stock_por_talle` JSONB). Si `tipo_variante === "color"` o `seccion === "bucal"`, la variante es un color y no un talle.
+- `productos_stock` → `/stock`: envío inmediato, stock real por talle (`stock_por_talle` JSONB). La columna `stock` es derivada: el admin no la pide y la guarda como suma de los talles activos (`ProductoPanel.js`). Si `tipo_variante === "color"` o `seccion === "bucal"`, la variante es un color y no un talle.
 - `productos_catalogo` → `/catalogo` y `/kids` (`seccion === "kids"`): se venden por encargo y **nunca descuentan stock**.
 - Las rutas de admin reciben la tabla por URL (`/api/admin/productos/[tabla]`, `tabla` ∈ `stock|catalogo`) y la traducen con `nombreTabla()`.
 - `data/productos.js` y `data/productosStock.js` son datos de prueba viejos que nada importa. Los productos se leen de Supabase.
