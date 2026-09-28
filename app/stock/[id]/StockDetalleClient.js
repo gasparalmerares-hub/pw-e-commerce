@@ -102,6 +102,10 @@ export default function StockDetalleClient({ params }) {
 
   const yaEnCarrito = talleSeleccionado ? cantidadEnCarrito(producto.id, talleSeleccionado) : 0;
   const disponible  = Math.max(0, stockTalle - yaEnCarrito);
+  // Todas las unidades de este talle ya están en el carrito: no es "sin stock",
+  // el comprador tiene que ir a pagar (antes se mostraba "Sin stock" y parecía
+  // que la compra había fallado).
+  const todoEnCarrito = yaEnCarrito > 0 && disponible === 0;
 
   function handleAgregar() {
     if (!talleSeleccionado) { setEstado("warning"); return; }
@@ -233,9 +237,15 @@ export default function StockDetalleClient({ params }) {
 
           {estado === "warning" && <p className="text-red-600 text-sm">Seleccioná un {esColor ? "color" : "talle"} primero.</p>}
 
-          <button onClick={handleAgregar} disabled={disponible === 0} className={`w-full font-semibold py-3 rounded-xl text-base active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${estado === "success" ? "bg-green-600 text-white scale-95" : "bg-orange-500 text-black hover:bg-orange-400"}`}>
-            {disponible === 0 ? `Sin stock para este ${esColor ? "color" : "talle"}` : estado === "success" ? "✓ Agregado al carrito" : "Agregar al carrito"}
-          </button>
+          {todoEnCarrito ? (
+            <Link href="/carrito" className="w-full flex items-center justify-center font-semibold py-3 rounded-xl text-base bg-green-600 text-white hover:bg-green-500 active:scale-95 transition-all duration-200">
+              ✓ Ya está en tu carrito · Finalizar compra
+            </Link>
+          ) : (
+            <button onClick={handleAgregar} disabled={disponible === 0} className={`w-full font-semibold py-3 rounded-xl text-base active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${estado === "success" ? "bg-green-600 text-white scale-95" : "bg-orange-500 text-black hover:bg-orange-400"}`}>
+              {disponible === 0 ? `Sin stock para este ${esColor ? "color" : "talle"}` : estado === "success" ? "✓ Agregado al carrito" : "Agregar al carrito"}
+            </button>
+          )}
 
           <a
             href={`https://wa.me/${WHATSAPP_ADMIN}?text=${encodeURIComponent(`Hola! Me interesa ${esColor ? "el protector bucal" : "la camiseta"} *${producto.nombre}*. ¿Podés darme más info?`)}`}
