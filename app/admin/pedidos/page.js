@@ -202,10 +202,8 @@ function DatosEnvio({ pedido }) {
     ["Nombre",        pedido.nombre],
     ["Email",         pedido.email],
     ["Teléfono",      pedido.telefono],
-    ["Calle",         pedido.calle],
-    ["Número",        pedido.numero],
-    ["Piso",          pedido.piso],
-    ["Depto",         pedido.departamento],
+    // Un solo campo, igual que el casillero "Dirección (calle, altura, piso y dpto.)" de MiCorreo
+    ["Dirección",     [pedido.calle, pedido.numero, pedido.piso && `Piso ${pedido.piso}`, pedido.departamento && `Dpto ${pedido.departamento}`].filter(Boolean).join(" ")],
     ["Localidad",     pedido.localidad],
     ["Provincia",     pedido.provincia],
     ["Cód. Postal",   pedido.codigo_postal],
