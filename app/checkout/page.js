@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { FaChevronRight, FaCreditCard, FaWhatsapp } from "react-icons/fa";
 import { trackInitiateCheckout } from "@/lib/fbpixel";
+import { PROVINCIAS, precioEnvioPara } from "@/lib/envio";
 
 const WHATSAPP_ADMIN = "5492216220145";
 
@@ -41,7 +42,7 @@ export default function CheckoutPage() {
     codigoPostal: "",
     observaciones: "",
   });
-  const [precioEnvio,      setPrecioEnvio]      = useState(0);
+  const [config,           setConfig]           = useState({});
   const [precioEstampa,    setPrecioEstampa]    = useState(0);
   // Parche por item: map keyed por `${id}-${talle}` → { activo, detalle }
   const [parches,          setParches]          = useState({});
@@ -53,11 +54,14 @@ export default function CheckoutPage() {
     fetch("/api/config", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
-        setPrecioEnvio(parseInt(d.precio_envio) || 0);
+        setConfig(d);
         setPrecioEstampa(parseInt(d.precio_estampa) || 0);
       })
       .catch(() => {});
   }, []);
+
+  // El envío depende de la provincia elegida (hasta elegirla se muestra "—")
+  const precioEnvio = form.provincia ? precioEnvioPara(config, form.provincia) : 0;
 
   // El parche estampado solo aplica a camisetas por encargo (catálogo y niños,
   // que están en productos_catalogo). No aplica a stock ni a bucales.
@@ -78,8 +82,10 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (items.length === 0) return;
     trackInitiateCheckout({ items, total: total + precioEnvio + costoEstampa });
+    // Sin precioEnvio en las dependencias: cambiar de provincia no debe
+    // volver a disparar el evento.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items.length, precioEnvio, costoEstampa]);
+  }, [items.length, costoEstampa]);
 
   // Cuando el usuario vuelve con "atrás" desde MP, el bfcache restaura la
   // página con cargando=true. El evento pageshow la resetea.
@@ -188,7 +194,7 @@ export default function CheckoutPage() {
       const res = await fetch("/api/pedidos/transferencia", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: itemsTransf, comprador: form, precioEnvio, parches: parchesPayload, precioEstampa }),
+        body: JSON.stringify({ items: itemsTransf, comprador: form, parches: parchesPayload, precioEstampa }),
       });
 
       const data = await res.json();
@@ -287,11 +293,16 @@ export default function CheckoutPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Campo label="Provincia *">
-                <input
-                  type="text" name="provincia" value={form.provincia}
-                  onChange={handleChange} required placeholder="Buenos Aires"
-                  className={inputClass}
-                />
+                <select
+                  name="provincia" value={form.provincia}
+                  onChange={handleChange} required
+                  className={`${inputClass} ${form.provincia ? "" : "text-gray-400"}`}
+                >
+                  <option value="" disabled>Elegí tu provincia</option>
+                  {PROVINCIAS.map((p) => (
+                    <option key={p} value={p} className="text-gray-900">{p}</option>
+                  ))}
+                </select>
               </Campo>
               <Campo label="Localidad *">
                 <input
@@ -462,7 +473,7 @@ export default function CheckoutPage() {
               </div>
               <div className="flex justify-between text-sm text-gray-500">
                 <span>Envío</span>
-                <span>{precioEnvio > 0 ? formatearPrecio(precioEnvio) : "—"}</span>
+                <span>{!form.provincia ? "Elegí tu provincia" : precioEnvio > 0 ? formatearPrecio(precioEnvio) : "—"}</span>
               </div>
               {costoEstampa > 0 && (
                 <div className="flex justify-between text-sm text-gray-500">

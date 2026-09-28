@@ -1,13 +1,23 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { unstable_noStore as noStore } from "next/cache";
+import { precioEnvioPara } from "@/lib/envio";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request) {
   noStore();
   try {
-    const { items, comprador, precioEnvio, parches, precioEstampa } = await request.json();
+    const { items, comprador, parches, precioEstampa } = await request.json();
     const parchesArr = Array.isArray(parches) ? parches : [];
+
+    // El envío se calcula acá según la provincia (no se confía en el valor
+    // que manda el navegador), con la misma regla que usa el checkout.
+    const { data: configRows } = await supabaseAdmin()
+      .from("configuracion")
+      .select("clave, valor")
+      .in("clave", ["precio_envio", "precio_envio_provincias"]);
+    const config = Object.fromEntries((configRows ?? []).map(({ clave, valor }) => [clave, valor]));
+    const precioEnvio = precioEnvioPara(config, comprador?.provincia);
 
     // Usar precio con descuento por transferencia si vino, sino el regular
     const subtotal     = items.reduce((sum, i) => sum + Number(i.precioTransf ?? i.precio) * Number(i.cantidad), 0);

@@ -1,8 +1,22 @@
 import MercadoPago, { Preference } from "mercadopago";
 import { supabaseAdmin } from "@/lib/supabase";
 import { unstable_noStore as noStore } from "next/cache";
+import { precioEnvioPara } from "@/lib/envio";
 
 export const dynamic = "force-dynamic";
+
+async function getPrecioEnvio(provincia) {
+  try {
+    const { data } = await supabaseAdmin()
+      .from("configuracion")
+      .select("clave, valor")
+      .in("clave", ["precio_envio", "precio_envio_provincias"]);
+    const config = Object.fromEntries((data ?? []).map(({ clave, valor }) => [clave, valor]));
+    return precioEnvioPara(config, provincia);
+  } catch {
+    return 0;
+  }
+}
 
 async function getPrecioConfig(clave) {
   try {
@@ -40,7 +54,7 @@ export async function POST(request) {
       ? `https://${host}`
       : (process.env.NEXT_PUBLIC_URL ?? "").replace(/\/$/, "");
 
-    const precioEnvio = await getPrecioConfig("precio_envio");
+    const precioEnvio = await getPrecioEnvio(comprador?.provincia);
     const precioEstampaUnit = parchesArr.length ? await getPrecioConfig("precio_estampa") : 0;
     const costoEstampa = parchesArr.length * precioEstampaUnit;
     const total = items.reduce((sum, i) => sum + Number(i.precio) * Number(i.cantidad), 0) + precioEnvio + costoEstampa;

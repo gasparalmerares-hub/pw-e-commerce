@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FaSpinner, FaChevronDown, FaChevronUp, FaBox, FaTimes } from "react-icons/fa";
+import { FaSpinner, FaChevronDown, FaChevronUp, FaBox, FaTimes, FaCopy, FaCheck } from "react-icons/fa";
 
 const ESTADOS = ["pendiente_transferencia", "pagado", "enviado", "entregado", "cancelado"];
 
@@ -130,16 +130,15 @@ function PedidoCard({ pedido, onEstadoChange, onEliminar }) {
             ))}
           </div>
 
-          {/* Datos del comprador */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
-            <Info label="Email"    value={pedido.email} />
-            <Info label="Teléfono" value={pedido.telefono} />
-            <Info label="Dirección" value={[pedido.calle, pedido.numero, pedido.piso && `Piso ${pedido.piso}`, pedido.departamento].filter(Boolean).join(" ")} />
-            <Info label="Localidad" value={[pedido.localidad, pedido.provincia].filter(Boolean).join(", ")} />
-            <Info label="Cód. Postal" value={pedido.codigo_postal} />
-            {pedido.payment_id && <Info label="Payment ID" value={pedido.payment_id} />}
-            {pedido.observaciones && <Info label="Observaciones" value={pedido.observaciones} className="sm:col-span-2" />}
-          </div>
+          {/* Datos del comprador — cada uno con botón de copiar, en el mismo
+              orden que los pide MiCorreo, para cargar el envío rápido */}
+          <DatosEnvio pedido={pedido} />
+          {(pedido.payment_id || pedido.observaciones) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
+              {pedido.payment_id && <Info label="Payment ID" value={pedido.payment_id} />}
+              {pedido.observaciones && <Info label="Observaciones" value={pedido.observaciones} className="sm:col-span-2" />}
+            </div>
+          )}
 
           {/* Items */}
           <div>
@@ -162,6 +161,74 @@ function PedidoCard({ pedido, onEstadoChange, onEliminar }) {
         </div>
       )}
     </article>
+  );
+}
+
+async function copiarTexto(texto) {
+  try {
+    await navigator.clipboard.writeText(texto);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function BotonCopiar({ texto, label = null, className = "" }) {
+  const [copiado, setCopiado] = useState(false);
+  async function handleClick(e) {
+    e.stopPropagation();
+    if (await copiarTexto(texto)) {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 1500);
+    }
+  }
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      title="Copiar"
+      className={`flex items-center justify-center gap-1.5 rounded-lg transition-colors ${
+        copiado ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500 hover:bg-orange-500 hover:text-black"
+      } ${label ? "px-3 py-1.5 text-xs font-semibold" : "w-7 h-7 shrink-0"} ${className}`}
+    >
+      {copiado ? <FaCheck className="text-xs" /> : <FaCopy className="text-xs" />}
+      {label && (copiado ? "¡Copiado!" : label)}
+    </button>
+  );
+}
+
+function DatosEnvio({ pedido }) {
+  const campos = [
+    ["Nombre",        pedido.nombre],
+    ["Email",         pedido.email],
+    ["Teléfono",      pedido.telefono],
+    ["Calle",         pedido.calle],
+    ["Número",        pedido.numero],
+    ["Piso",          pedido.piso],
+    ["Depto",         pedido.departamento],
+    ["Localidad",     pedido.localidad],
+    ["Provincia",     pedido.provincia],
+    ["Cód. Postal",   pedido.codigo_postal],
+  ].filter(([, v]) => v);
+
+  const todo = campos.map(([l, v]) => `${l}: ${v}`).join("\n");
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-gray-500 font-medium">Datos de envío</p>
+        <BotonCopiar texto={todo} label="Copiar todo" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+        {campos.map(([label, valor]) => (
+          <div key={label} className="flex items-center gap-2 min-w-0">
+            <BotonCopiar texto={String(valor)} />
+            <span className="text-xs text-gray-500 shrink-0">{label}:</span>
+            <span className="text-xs text-gray-700 truncate">{valor}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
