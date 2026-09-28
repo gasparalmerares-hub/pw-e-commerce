@@ -31,7 +31,7 @@ Las variables de entorno van en `.env.local` (no se versiona). La lista completa
 - Las rutas de admin reciben la tabla por URL (`/api/admin/productos/[tabla]`, `tabla` ∈ `stock|catalogo`) y la traducen con `nombreTabla()`.
 - `data/productos.js` y `data/productosStock.js` son datos de prueba viejos que nada importa. Los productos se leen de Supabase.
 
-Otras tablas: `pedidos`, `configuracion` (clave/valor, por ejemplo `precio_envio` y `precio_estampa`) y `paginas_especiales` (Mystery Futbox, Griptec). El esquema está repartido en varios `supabase*.sql` en la raíz, que se corren a mano en el SQL Editor de Supabase. No hay herramienta de migraciones.
+Otras tablas: `pedidos`, `configuracion` (clave/valor: `precio_envio` general, `precio_envio_provincias` JSON por provincia y `precio_estampa`; la regla del envío está en `lib/envio.js` y la usan el checkout y las dos API que crean pedidos) y `paginas_especiales` (Mystery Futbox, Griptec). El esquema está repartido en varios `supabase*.sql` en la raíz, que se corren a mano en el SQL Editor de Supabase. No hay herramienta de migraciones.
 
 **Clientes de Supabase (`lib/supabase.js`):** `supabase` usa la clave publishable y sirve para las lecturas de páginas públicas. `supabaseAdmin()` usa la service role y va **solo** en rutas de API del servidor.
 
