@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { FaBoxOpen, FaTshirt, FaSignOutAlt, FaStar, FaClipboardList, FaCog, FaChild } from "react-icons/fa";
+import { FaBoxOpen, FaTshirt, FaSignOutAlt, FaStar, FaClipboardList, FaCog, FaChild, FaBoxes } from "react-icons/fa";
 
 // Script síncrono que se ejecuta al parsear el HTML, ANTES de que React
 // hidrate y antes de que el navegador muestre el prompt de "instalar app".
@@ -54,6 +54,7 @@ const secciones = [
   { href: "/admin/kids",           label: "Niños",      icon: FaChild         },
   { href: "/admin/especiales",     label: "Destacados", icon: FaStar          },
   { href: "/admin/pedidos",        label: "Pedidos",    icon: FaClipboardList },
+  { href: "/admin/encargos",       label: "Encargos",   icon: FaBoxes         },
   { href: "/admin/configuracion",  label: "Config",     icon: FaCog           },
 ];
 

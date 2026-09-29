@@ -6,6 +6,7 @@ import { useCart } from "@/context/CartContext";
 import { FaChevronRight, FaCreditCard, FaWhatsapp } from "react-icons/fa";
 import { trackInitiateCheckout } from "@/lib/fbpixel";
 import { PROVINCIAS, precioEnvioPara } from "@/lib/envio";
+import { textoPersonalizacion } from "@/lib/personalizacion";
 
 const WHATSAPP_ADMIN = "5492216220145";
 
@@ -44,7 +45,7 @@ export default function CheckoutPage() {
   });
   const [config,           setConfig]           = useState({});
   const [precioEstampa,    setPrecioEstampa]    = useState(0);
-  // Parche por item: map keyed por `${id}-${talle}` → { activo, detalle }
+  // Parche por item: map keyed por `${id}-${talle}` → { activo, nombre, numero }
   const [parches,          setParches]          = useState({});
   const [cargando,         setCargando]         = useState(false);
   const [cargandoTransf,   setCargandoTransf]   = useState(false);
@@ -70,13 +71,25 @@ export default function CheckoutPage() {
   const seleccionados = elegibles.filter((it) => parches[itemKey(it)]?.activo);
   const costoEstampa  = seleccionados.length * precioEstampa;
 
+  // Nombre y número a estampar de cada camiseta con parche (vacíos si no hay)
+  const persDe = (it) => ({
+    nombre: (parches[itemKey(it)]?.nombre ?? "").trim(),
+    numero: (parches[itemKey(it)]?.numero ?? "").trim(),
+  });
+
   // Lista de parches con detalle, lista para enviar al backend / WhatsApp
   const parchesPayload = seleccionados.map((it) => ({
     nombre: it.nombre,
     talle: it.talle,
-    detalle: (parches[itemKey(it)]?.detalle ?? "").trim(),
+    detalle: textoPersonalizacion(persDe(it)),
   }));
-  const parchesIncompletos = seleccionados.some((it) => !(parches[itemKey(it)]?.detalle ?? "").trim());
+  const parchesIncompletos = seleccionados.some((it) => !textoPersonalizacion(persDe(it)));
+
+  // Los items del pedido llevan su personalización, así el panel de Encargos
+  // la muestra por camiseta (antes solo quedaba como texto en observaciones).
+  const itemsConPers = items.map((it) =>
+    seleccionados.includes(it) ? { ...it, personalizacion: persDe(it) } : it
+  );
 
   // Disparar InitiateCheckout cuando hay items y el componente está listo.
   useEffect(() => {
@@ -126,7 +139,7 @@ export default function CheckoutPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (parchesIncompletos) {
-      setError("Escribí qué querés estampar en cada camiseta con parche seleccionado.");
+      setError("Completá el nombre o el número a estampar en cada camiseta con parche.");
       return;
     }
     setCargando(true);
@@ -136,7 +149,7 @@ export default function CheckoutPage() {
       const res = await fetch("/api/create-preference", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, comprador: form, parches: parchesPayload }),
+        body: JSON.stringify({ items: itemsConPers, comprador: form, parches: parchesPayload }),
       });
 
       const data = await res.json();
@@ -175,7 +188,7 @@ export default function CheckoutPage() {
       return;
     }
     if (parchesIncompletos) {
-      setError("Escribí qué querés estampar en cada camiseta con parche seleccionado.");
+      setError("Completá el nombre o el número a estampar en cada camiseta con parche.");
       return;
     }
     setCargandoTransf(true);
@@ -183,7 +196,7 @@ export default function CheckoutPage() {
 
     try {
       // Calcular precios con descuento por transferencia por item
-      const itemsTransf = items.map((i) => {
+      const itemsTransf = itemsConPers.map((i) => {
         const desc = Number(i.descuentoTransferencia) || 0;
         const precioTransf = Math.round(i.precio * (1 - desc / 100));
         return { ...i, precioTransf, descuentoTransferencia: desc };
@@ -377,7 +390,7 @@ export default function CheckoutPage() {
 
               {elegibles.map((it) => {
                 const k = itemKey(it);
-                const p = parches[k] ?? { activo: false, detalle: "" };
+                const p = parches[k] ?? { activo: false, nombre: "", numero: "" };
                 return (
                   <div key={k} className="border border-gray-200 rounded-lg p-3 bg-white flex flex-col gap-3">
                     <label className="flex items-start gap-3 cursor-pointer">
@@ -395,13 +408,26 @@ export default function CheckoutPage() {
                       </div>
                     </label>
                     {p.activo && (
-                      <textarea
-                        value={p.detalle}
-                        onChange={(e) => setParches((prev) => ({ ...prev, [k]: { ...p, detalle: e.target.value } }))}
-                        placeholder="¿Qué querés estampar? Ej: nombre 'GARCÍA', número 10..."
-                        rows={2}
-                        className={`${inputClass} resize-none`}
-                      />
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="col-span-2">
+                          <Campo label="Nombre">
+                            <input
+                              type="text" value={p.nombre ?? ""} maxLength={20}
+                              onChange={(e) => setParches((prev) => ({ ...prev, [k]: { ...p, nombre: e.target.value } }))}
+                              placeholder="GARCÍA"
+                              className={inputClass}
+                            />
+                          </Campo>
+                        </div>
+                        <Campo label="Número">
+                          <input
+                            type="text" inputMode="numeric" value={p.numero ?? ""} maxLength={3}
+                            onChange={(e) => setParches((prev) => ({ ...prev, [k]: { ...p, numero: e.target.value.replace(/\D/g, "") } }))}
+                            placeholder="10"
+                            className={inputClass}
+                          />
+                        </Campo>
+                      </div>
                     )}
                   </div>
                 );
