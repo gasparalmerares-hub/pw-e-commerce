@@ -327,7 +327,7 @@ export default function EncargosPage() {
         <div className="fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center sm:px-4">
           <div className="bg-white w-full sm:max-w-2xl max-h-[90vh] rounded-t-2xl sm:rounded-2xl flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h2 className="font-bold text-gray-900">{imagenes.length} imagen{imagenes.length !== 1 ? "es" : ""} para el proveedor</h2>
+              <h2 className="font-bold text-gray-900">{imagenes.length === 1 ? "1 imagen" : `${imagenes.length} imágenes`} para el proveedor</h2>
               <button onClick={cerrarImagenes} className="text-gray-500 hover:text-gray-900"><FaTimes /></button>
             </div>
 
