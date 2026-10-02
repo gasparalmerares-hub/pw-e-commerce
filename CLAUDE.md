@@ -44,6 +44,8 @@ Otras tablas: `pedidos`, `configuracion` (clave/valor: `precio_envio` general, `
 - Encargos al proveedor (`/admin/encargos`): lista los items con `tabla === "productos_catalogo"` de pedidos `pagado`. El estado frente al proveedor vive en el propio item (`item.encargo = { estado: "encargado"|"llego", encargadoEl, llegoEl }`, sin campo = por encargar) y se cambia con `PATCH /api/admin/encargos`. La página arma en el navegador (canvas) una imagen por camiseta con foto + talle + nombre + #número para mandar al proveedor.
 - Los parches o estampados se guardan en cada item (`item.personalizacion = { nombre, numero }`, pedidos nuevos) y además como texto en `observaciones` (pedidos viejos solo tienen el texto; `lib/personalizacion.js` lee ambos). Se cobran como ítem `estampa`. El envío es el ítem `envio`. Los dos se saltean al descontar stock.
 
+**Cuotas:** hasta `MAX_CUOTAS` (`lib/cuotas.js`), con interés a cargo del comprador (la tienda cobra lo mismo que en 1 pago). La preferencia de MP usa ese máximo, y `/api/cuotas?monto=` consulta las tasas reales de la cuenta (Visa y Mastercard, cache 1 h) para la tabla `components/CuotasMP.js` de las páginas de producto. No mostrar "precio ÷ cuotas": no hay cuotas sin interés.
+
 **Admin (`/admin`, `/api/admin/*`):** `middleware.js` compara la cookie `admin_session` con `ADMIN_SESSION_SECRET`. Solo `GET /api/admin/pedidos` acepta además el header `x-api-key` (`AUTOMATION_API_KEY`), que usa el Google Apps Script del cliente. La edición de productos vive en `app/admin/_components/ProductoPanel.js`. Las subidas van a Cloudinary (`/api/admin/upload`, carpeta `productos`).
 
 ## Restricciones de costo y hosting (planes gratuitos)
