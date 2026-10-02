@@ -291,12 +291,26 @@ export default function HomePage() {
           <p className="text-base md:text-2xl text-orange-500 font-semibold mb-10 max-w-xs md:max-w-none">
             Las mejores camisetas de rugby de Argentina
           </p>
-          <Link
-            href="/catalogo"
-            className="inline-block bg-orange-500 text-black font-bold px-8 md:px-10 py-3.5 rounded-full text-base md:text-lg hover:bg-orange-400 transition-colors active:scale-95 shadow-lg shadow-orange-500/30"
-          >
-            Ver catálogo
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-xs sm:max-w-none">
+            <Link
+              href="/catalogo"
+              className="w-full sm:w-auto text-center bg-orange-500 text-black font-bold px-8 md:px-10 py-3.5 rounded-full text-base md:text-lg hover:bg-orange-400 transition-colors active:scale-95 shadow-lg shadow-orange-500/30"
+            >
+              Ver catálogo
+            </Link>
+            <Link
+              href="/stock"
+              className="w-full sm:w-auto text-center border-2 border-white/80 text-white font-bold px-8 md:px-10 py-3 rounded-full text-base md:text-lg hover:bg-white hover:text-black transition-colors active:scale-95"
+            >
+              Ver stock disponible
+            </Link>
+            <Link
+              href="/guia-de-talles"
+              className="w-full sm:w-auto text-center border-2 border-white/80 text-white font-bold px-8 md:px-10 py-3 rounded-full text-base md:text-lg hover:bg-white hover:text-black transition-colors active:scale-95"
+            >
+              Ver guía de talles
+            </Link>
+          </div>
         </div>
 
         {/* Stats — pegados al fondo del hero */}
