@@ -66,30 +66,40 @@ export default function CheckoutPage() {
 
   // El parche estampado solo aplica a camisetas por encargo (catálogo y niños,
   // que están en productos_catalogo). No aplica a stock ni a bucales.
+  // El parche es por unidad: 2 camisetas iguales pueden llevar nombres distintos
+  // y se cobra una estampa por cada una. Clave: `${id}-${talle}#${unidad}`.
   const itemKey      = (it) => `${it.id}-${it.talle}`;
   const elegibles    = items.filter((it) => it.tabla === "productos_catalogo");
-  const seleccionados = elegibles.filter((it) => parches[itemKey(it)]?.activo);
-  const costoEstampa  = seleccionados.length * precioEstampa;
+  const unidades     = elegibles.flatMap((it) =>
+    Array.from({ length: Number(it.cantidad) || 1 }, (_, u) => ({ it, u, k: `${itemKey(it)}#${u}` }))
+  );
+  const conParche    = unidades.filter(({ k }) => parches[k]?.activo);
+  const costoEstampa = conParche.length * precioEstampa;
 
-  // Nombre y número a estampar de cada camiseta con parche (vacíos si no hay)
-  const persDe = (it) => ({
-    nombre: (parches[itemKey(it)]?.nombre ?? "").trim(),
-    numero: (parches[itemKey(it)]?.numero ?? "").trim(),
+  // Nombre y número a estampar de una unidad (vacíos si no hay)
+  const persDe = (k) => ({
+    nombre: (parches[k]?.nombre ?? "").trim(),
+    numero: (parches[k]?.numero ?? "").trim(),
   });
 
-  // Lista de parches con detalle, lista para enviar al backend / WhatsApp
-  const parchesPayload = seleccionados.map((it) => ({
+  // Lista de parches con detalle (uno por unidad), para el backend y WhatsApp
+  const parchesPayload = conParche.map(({ it, k }) => ({
     nombre: it.nombre,
     talle: it.talle,
-    detalle: textoPersonalizacion(persDe(it)),
+    detalle: textoPersonalizacion(persDe(k)),
   }));
-  const parchesIncompletos = seleccionados.some((it) => !textoPersonalizacion(persDe(it)));
+  const parchesIncompletos = conParche.some(({ k }) => !textoPersonalizacion(persDe(k)));
 
-  // Los items del pedido llevan su personalización, así el panel de Encargos
-  // la muestra por camiseta (antes solo quedaba como texto en observaciones).
-  const itemsConPers = items.map((it) =>
-    seleccionados.includes(it) ? { ...it, personalizacion: persDe(it) } : it
-  );
+  // Cada item lleva la personalización de cada unidad (null = sin parche), así
+  // el panel de Encargos arma una imagen por camiseta para el proveedor.
+  const itemsConPers = items.map((it) => {
+    if (it.tabla !== "productos_catalogo") return it;
+    const personalizaciones = Array.from({ length: Number(it.cantidad) || 1 }, (_, u) => {
+      const k = `${itemKey(it)}#${u}`;
+      return parches[k]?.activo ? persDe(k) : null;
+    });
+    return personalizaciones.some(Boolean) ? { ...it, personalizaciones } : it;
+  });
 
   // Disparar InitiateCheckout cuando hay items y el componente está listo.
   useEffect(() => {
@@ -207,7 +217,7 @@ export default function CheckoutPage() {
       const res = await fetch("/api/pedidos/transferencia", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: itemsTransf, comprador: form, parches: parchesPayload, precioEstampa }),
+        body: JSON.stringify({ items: itemsTransf, comprador: form, parches: parchesPayload }),
       });
 
       const data = await res.json();
@@ -388,9 +398,9 @@ export default function CheckoutPage() {
                 <p className="text-sm text-gray-500">Agregá un parche estampado a las camisetas que quieras ({formatearPrecio(precioEstampa)} c/u).</p>
               </div>
 
-              {elegibles.map((it) => {
-                const k = itemKey(it);
+              {unidades.map(({ it, u, k }) => {
                 const p = parches[k] ?? { activo: false, nombre: "", numero: "" };
+                const cantidad = Number(it.cantidad) || 1;
                 return (
                   <div key={k} className="border border-gray-200 rounded-lg p-3 bg-white flex flex-col gap-3">
                     <label className="flex items-start gap-3 cursor-pointer">
@@ -403,6 +413,7 @@ export default function CheckoutPage() {
                       <div className="min-w-0">
                         <p className="font-semibold text-gray-900 text-sm">
                           {it.nombre} <span className="text-gray-500 font-normal">· Talle {it.talle}</span>
+                          {cantidad > 1 && <span className="text-gray-500 font-normal"> · camiseta {u + 1} de {cantidad}</span>}
                         </p>
                         <p className="text-xs text-orange-500 font-semibold">+{formatearPrecio(precioEstampa)}</p>
                       </div>
@@ -503,7 +514,7 @@ export default function CheckoutPage() {
               </div>
               {costoEstampa > 0 && (
                 <div className="flex justify-between text-sm text-gray-500">
-                  <span>Parche estampado x{seleccionados.length}</span>
+                  <span>Parche estampado x{conParche.length}</span>
                   <span>{formatearPrecio(costoEstampa)}</span>
                 </div>
               )}

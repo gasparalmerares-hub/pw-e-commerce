@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { FaSpinner, FaWhatsapp, FaDownload, FaTimes, FaCheck, FaImages } from "react-icons/fa";
-import { personalizacionDe } from "@/lib/personalizacion";
+import { personalizacionesDe } from "@/lib/personalizacion";
 
 // Camisetas por encargo de los pedidos pagados, agrupadas según qué pasó con
 // el proveedor. El estado vive en cada item del pedido (ver /api/admin/encargos).
@@ -32,7 +32,7 @@ function armarFilas(pedidos) {
         cliente: p.nombre,
         fecha:   p.created_at,
         estado:  item.encargo?.estado ?? "por_encargar",
-        pers:    personalizacionDe(p, item),
+        perss:   personalizacionesDe(p, item), // una por unidad (null = sin parche)
       });
     });
   }
@@ -58,7 +58,8 @@ function fuenteQueEntra(ctx, texto, anchoMax, tamanoMax) {
   }
 }
 
-async function armarImagen(fila, n) {
+// Una imagen por camiseta (unidad), con su propia personalización
+async function armarImagen(fila, pers, n) {
   const W = 1080, H = 1350, FOTO = 960, BASE_TEXTO = 1030;
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -84,11 +85,10 @@ async function armarImagen(fila, n) {
   ctx.fillRect(60, BASE_TEXTO - 16, W - 120, 4);
 
   // Mismo formato que se le manda al proveedor: talle, nombre y #número
-  const cantidad = Number(fila.item.cantidad) || 1;
-  const lineas = [`${fila.item.talle}${cantidad > 1 ? `  ·  x${cantidad}` : ""}`];
-  if (fila.pers?.nombre) lineas.push(fila.pers.nombre.toUpperCase());
-  if (fila.pers?.numero) lineas.push(`#${fila.pers.numero}`);
-  if (fila.pers && !fila.pers.nombre && !fila.pers.numero) lineas.push(fila.pers.texto.toUpperCase());
+  const lineas = [String(fila.item.talle)];
+  if (pers?.nombre) lineas.push(pers.nombre.toUpperCase());
+  if (pers?.numero) lineas.push(`#${pers.numero}`);
+  if (pers && !pers.nombre && !pers.numero) lineas.push(pers.texto.toUpperCase());
 
   const alto = (H - BASE_TEXTO - 20) / lineas.length;
   lineas.forEach((linea, i) => {
@@ -177,10 +177,13 @@ export default function EncargosPage() {
     if (elegidas.length === 0) return;
     setPreparando(true);
     try {
+      // Una imagen por unidad: 2 camisetas iguales con nombres distintos son 2 fotos
       const lista = [];
-      for (let i = 0; i < elegidas.length; i++) {
-        const file = await armarImagen(elegidas[i], i + 1);
-        lista.push({ file, url: URL.createObjectURL(file) });
+      for (const fila of elegidas) {
+        for (const pers of fila.perss) {
+          const file = await armarImagen(fila, pers, lista.length + 1);
+          lista.push({ file, url: URL.createObjectURL(file) });
+        }
       }
       setImagenes(lista);
     } catch (err) {
@@ -308,8 +311,17 @@ export default function EncargosPage() {
                   <p className="text-sm text-gray-700">
                     Talle <strong>{f.item.talle}</strong>
                     {Number(f.item.cantidad) > 1 && <> · <strong>x{f.item.cantidad}</strong></>}
-                    {f.pers && <> · <strong className="text-orange-600">{f.pers.texto.toUpperCase()}</strong></>}
+                    {f.perss.length === 1 && f.perss[0] && <> · <strong className="text-orange-600">{f.perss[0].texto.toUpperCase()}</strong></>}
                   </p>
+                  {f.perss.length > 1 && f.perss.some(Boolean) && (
+                    <p className="text-xs text-gray-700">
+                      {f.perss.map((p, u) => (
+                        <span key={u} className="mr-3">
+                          {u + 1}: {p ? <strong className="text-orange-600">{p.texto.toUpperCase()}</strong> : "sin estampa"}
+                        </span>
+                      ))}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-500 truncate">
                     {f.cliente ?? "—"} · pedido del {formatearFecha(f.fecha)}
                     {f.estado === "encargado" && ` · encargada el ${formatearFecha(f.item.encargo?.encargadoEl)}`}
