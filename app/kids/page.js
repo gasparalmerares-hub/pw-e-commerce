@@ -8,6 +8,7 @@ import FadeIn from "@/components/FadeIn";
 import { FaChevronDown, FaChevronUp, FaFilter } from "react-icons/fa";
 import { MAX_CUOTAS } from "@/lib/cuotas";
 import SkeletonCard from "@/components/SkeletonCard";
+import { useVolverAlListado } from "@/lib/useVolverAlListado";
 
 function formatearPrecio(precio) {
   return "$" + precio.toLocaleString("es-AR");
@@ -41,6 +42,18 @@ export default function KidsPage() {
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [visible, setVisible] = useState(12);
+
+  // Al volver de un producto, retomar el mismo scroll, filtros y cantidad cargada
+  const guardarPosicion = useVolverAlListado("kids", {
+    estado: { tipo, talle, busqueda, visible },
+    restaurar: (e) => {
+      setTipo(e.tipo ?? "Todos");
+      setTalle(e.talle ?? "Todos");
+      setBusqueda(e.busqueda ?? "");
+      setVisible(e.visible ?? 12);
+    },
+    listo: !cargando,
+  });
 
   useEffect(() => {
     supabase
@@ -140,7 +153,7 @@ export default function KidsPage() {
           >
             {productosFiltrados.slice(0, visible).map((producto, i) => (
               <FadeIn key={producto.id} delay={i * 20}>
-                <Link href={`/catalogo/${producto.id}`} className="block h-full">
+                <Link href={`/catalogo/${producto.id}`} onClick={guardarPosicion} className="block h-full">
                   <article className="bg-[#f5f5f0] rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col transition-transform duration-300 hover:-translate-y-2 hover:shadow-lg h-full cursor-pointer">
                     <div className="h-40 sm:h-52 bg-[#f5f5f0] relative overflow-hidden">
                       <Image
