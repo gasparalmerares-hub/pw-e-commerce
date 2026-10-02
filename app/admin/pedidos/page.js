@@ -84,7 +84,11 @@ function PedidoCard({ pedido, onEstadoChange, onEliminar }) {
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold text-gray-900 text-sm truncate">{pedido.nombre ?? "—"}</span>
             <EstadoBadge estado={estadoLocal} />
-            {(pedido.estado === "pendiente_transferencia" || pedido.metodo_pago === "transferencia" || (pedido.observaciones ?? "").includes("[TRANSFERENCIA]")) && (
+            {(pedido.observaciones ?? "").includes("[MAYORISTA]") ? (
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700">
+                Mayorista
+              </span>
+            ) : (pedido.estado === "pendiente_transferencia" || pedido.metodo_pago === "transferencia" || (pedido.observaciones ?? "").includes("[TRANSFERENCIA]")) && (
               <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700">
                 Transferencia
               </span>

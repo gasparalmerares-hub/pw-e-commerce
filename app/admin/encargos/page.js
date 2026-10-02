@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { FaSpinner, FaWhatsapp, FaDownload, FaTimes, FaCheck, FaImages } from "react-icons/fa";
 import { personalizacionesDe } from "@/lib/personalizacion";
+import { armarImagenCamiseta } from "@/lib/imagenCamiseta";
 
 // Camisetas por encargo de los pedidos pagados, agrupadas según qué pasó con
 // el proveedor. El estado vive en cada item del pedido (ver /api/admin/encargos).
@@ -42,62 +43,18 @@ function armarFilas(pedidos) {
 
 // ─── Imagen para el proveedor: foto + talle, nombre y número en grande ──────
 
-async function cargarImagen(url) {
-  const res = await fetch(url, { mode: "cors" });
-  if (!res.ok) throw new Error("No se pudo cargar la foto");
-  return createImageBitmap(await res.blob());
-}
-
-// Achica la fuente hasta que el texto entre en el ancho disponible
-function fuenteQueEntra(ctx, texto, anchoMax, tamanoMax) {
-  let t = tamanoMax;
-  ctx.font = `bold ${t}px Arial, Helvetica, sans-serif`;
-  while (ctx.measureText(texto).width > anchoMax && t > 24) {
-    t -= 4;
-    ctx.font = `bold ${t}px Arial, Helvetica, sans-serif`;
-  }
-}
-
 // Una imagen por camiseta (unidad), con su propia personalización
-async function armarImagen(fila, pers, n) {
-  const W = 1080, H = 1350, FOTO = 960, BASE_TEXTO = 1030;
-  const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext("2d");
-
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, W, H);
-  ctx.textAlign = "center";
-
-  try {
-    const img = await cargarImagen(fila.item.imagen);
-    const escala = Math.min(FOTO / img.width, FOTO / img.height);
-    const w = img.width * escala, h = img.height * escala;
-    ctx.drawImage(img, (W - w) / 2, 40 + (FOTO - h) / 2, w, h);
-  } catch {
-    ctx.fillStyle = "#999999";
-    ctx.font = "bold 48px Arial, Helvetica, sans-serif";
-    ctx.fillText("(sin foto)", W / 2, 520);
-  }
-
-  ctx.fillStyle = "#111111";
-  ctx.fillRect(60, BASE_TEXTO - 16, W - 120, 4);
-
+function armarImagen(fila, pers, n) {
   // Mismo formato que se le manda al proveedor: talle, nombre y #número
   const lineas = [String(fila.item.talle)];
   if (pers?.nombre) lineas.push(pers.nombre.toUpperCase());
   if (pers?.numero) lineas.push(`#${pers.numero}`);
   if (pers && !pers.nombre && !pers.numero) lineas.push(pers.texto.toUpperCase());
-
-  const alto = (H - BASE_TEXTO - 20) / lineas.length;
-  lineas.forEach((linea, i) => {
-    fuenteQueEntra(ctx, linea, W - 120, Math.min(130, alto * 0.8));
-    ctx.fillText(linea, W / 2, BASE_TEXTO + alto * (i + 1) - alto * 0.2);
+  return armarImagenCamiseta({
+    imagen: fila.item.imagen,
+    lineas,
+    nombreArchivo: `encargo-${String(n).padStart(2, "0")}.jpg`,
   });
-
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
-  return new File([blob], `encargo-${String(n).padStart(2, "0")}.jpg`, { type: "image/jpeg" });
 }
 
 // ─── Página ──────────────────────────────────────────────────────────────────
