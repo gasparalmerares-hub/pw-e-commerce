@@ -1,87 +1,137 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { unstable_noStore as noStore } from "next/cache";
-import { MINIMO_MAYORISTA, precioMayoristaUSD } from "@/lib/mayorista";
+import {
+  MINIMO_MAYORISTA, ESCALAS_STOCK, ESCALAS_ENCARGO, PRECIO_PERSONALIZACION_USD, SENA_ENCARGO,
+  precioPorEscala, cantidadPersonalizaciones, redondearUSD, formatoUSD,
+} from "@/lib/mayorista";
 import { getDolarBlue } from "@/lib/dolar";
 
 export const dynamic = "force-dynamic";
 
-// Registra un pedido mayorista de camisetas en stock. Todo se recalcula acá
-// (stock disponible, escala de precio y dólar blue): no se confía en lo que
-// manda el navegador. El pedido queda pendiente y el stock se descuenta recién
-// cuando la tienda lo marca como "pagado" en el panel (igual que transferencias).
+// Registra un pedido mayorista. Todo se recalcula acá (stock o catálogo,
+// escala de precio, personalización y dólar blue): no se confía en lo que
+// manda el navegador. El pedido queda pendiente hasta que la tienda lo marca
+// como "pagado" en el panel; recién ahí se descuenta el stock (modalidad stock)
+// o pasa a la sección Encargos para pedirlo a fábrica (modalidad encargo).
 //
-// body: { items: [{ id, talle, cantidad }], comprador: { nombre, celular, provincia, localidad } }
+// body: {
+//   tipo: "stock" | "encargo",
+//   items: stock   → [{ id, talle, cantidad }]
+//          encargo → [{ id, talle, personalizaciones: [{ nombre, numero } | null, ...] }]
+//   comprador: { nombre, celular, provincia, localidad },
+// }
+
+const pesos = (n) => "$" + Math.round(n).toLocaleString("es-AR");
+
+function limpiarPers(p) {
+  const nombre = String(p?.nombre ?? "").trim().slice(0, 20);
+  const numero = String(p?.numero ?? "").replace(/\D/g, "").slice(0, 3);
+  return nombre || numero ? { nombre, numero } : null;
+}
+
 export async function POST(request) {
   noStore();
   try {
-    const { items, comprador } = await request.json();
+    const { tipo = "stock", items, comprador } = await request.json();
+    if (!["stock", "encargo"].includes(tipo)) {
+      return Response.json({ error: "Tipo de pedido inválido." }, { status: 400 });
+    }
     if (!comprador?.nombre?.trim() || !comprador?.celular?.trim()) {
       return Response.json({ error: "Completá tu nombre y celular." }, { status: 400 });
     }
 
-    const pedidos = (Array.isArray(items) ? items : [])
-      .map((i) => ({ id: String(i.id), talle: String(i.talle ?? ""), cantidad: parseInt(i.cantidad) || 0 }))
-      .filter((i) => i.cantidad > 0);
-    const cantidadTotal = pedidos.reduce((s, i) => s + i.cantidad, 0);
+    // Una línea por modelo y talle
+    const lineas = new Map();
+    for (const i of Array.isArray(items) ? items : []) {
+      const k = `${String(i.id)}|${String(i.talle ?? "")}`;
+      const l = lineas.get(k) ?? { id: String(i.id), talle: String(i.talle ?? ""), cantidad: 0, personalizaciones: [] };
+      if (tipo === "encargo") {
+        const pers = (Array.isArray(i.personalizaciones) ? i.personalizaciones : []).slice(0, 500).map(limpiarPers);
+        l.personalizaciones.push(...pers);
+        l.cantidad += pers.length;
+      } else {
+        l.cantidad += Math.max(0, parseInt(i.cantidad) || 0);
+      }
+      if (l.cantidad > 0) lineas.set(k, l);
+    }
+    const cantidadTotal = [...lineas.values()].reduce((s, l) => s + l.cantidad, 0);
     if (cantidadTotal < MINIMO_MAYORISTA) {
       return Response.json({ error: `El pedido mayorista es de ${MINIMO_MAYORISTA} camisetas como mínimo.` }, { status: 400 });
     }
 
     const db = supabaseAdmin();
+    const tabla = tipo === "stock" ? "productos_stock" : "productos_catalogo";
     const { data: productos, error: errProd } = await db
-      .from("productos_stock")
+      .from(tabla)
       .select("id, nombre, imagen, talle, stock_por_talle, seccion")
-      .in("id", [...new Set(pedidos.map((i) => i.id))]);
+      .in("id", [...new Set([...lineas.values()].map((l) => l.id))]);
     if (errProd) throw errProd;
     const porId = new Map((productos ?? []).map((p) => [String(p.id), p]));
 
-    // Verificar que cada camiseta y talle exista y tenga stock suficiente
-    const pedidoPorTalle = new Map();
-    for (const i of pedidos) {
-      const k = `${i.id}|${i.talle}`;
-      pedidoPorTalle.set(k, (pedidoPorTalle.get(k) ?? 0) + i.cantidad);
-    }
-    for (const [k, cantidad] of pedidoPorTalle) {
-      const [id, talle] = k.split("|");
-      const p = porId.get(id);
-      const disponible = Number(p?.stock_por_talle?.[talle]) || 0;
-      if (!p || (p.seccion ?? "camiseta") === "bucal" || !(p.talle ?? []).includes(talle) || disponible < cantidad) {
-        return Response.json({
-          error: `No hay stock suficiente de ${p?.nombre?.trim() ?? "una camiseta"} talle ${talle} (quedan ${disponible}). Actualizá la página y revisá tu pedido.`,
-        }, { status: 409 });
+    for (const l of lineas.values()) {
+      const p = porId.get(l.id);
+      if (!p || !(p.talle ?? []).includes(l.talle)) {
+        return Response.json({ error: "Una de las camisetas ya no está disponible en ese talle. Actualizá la página y revisá tu pedido." }, { status: 409 });
+      }
+      if (tipo === "stock") {
+        const disponible = Number(p.stock_por_talle?.[l.talle]) || 0;
+        if ((p.seccion ?? "camiseta") === "bucal" || disponible < l.cantidad) {
+          return Response.json({
+            error: `No hay stock suficiente de ${p.nombre.trim()} talle ${l.talle} (quedan ${disponible}). Actualizá la página y revisá tu pedido.`,
+          }, { status: 409 });
+        }
       }
     }
 
-    const precioUSD = precioMayoristaUSD(cantidadTotal);
-    const dolar     = await getDolarBlue();
+    const escala   = precioPorEscala(tipo === "stock" ? ESCALAS_STOCK : ESCALAS_ENCARGO, cantidadTotal);
+    const dolar    = await getDolarBlue();
+    const precioUSD = escala.precio;
     const precioARS = Math.round(precioUSD * dolar.venta);
-    const totalUSD  = precioUSD * cantidadTotal;
-    const totalARS  = precioARS * cantidadTotal;
+    const extras    = tipo === "encargo"
+      ? cantidadPersonalizaciones([...lineas.values()].flatMap((l) => l.personalizaciones))
+      : 0;
+    const totalUSD  = precioUSD * cantidadTotal + extras * PRECIO_PERSONALIZACION_USD;
+    const totalARS  = Math.round(totalUSD * dolar.venta);
+    const senaUSD   = tipo === "encargo" ? redondearUSD(totalUSD * SENA_ENCARGO) : totalUSD;
+    const saldoUSD  = redondearUSD(totalUSD - senaUSD);
 
-    const filas = [...pedidoPorTalle.entries()].map(([k, cantidad]) => {
-      const [id, talle] = k.split("|");
-      const p = porId.get(id);
+    const filas = [...lineas.values()].map((l) => {
+      const p = porId.get(l.id);
       return {
-        id, talle, cantidad,
-        nombre:     p.nombre,
-        imagen:     p.imagen,
-        precio:     precioARS,       // en pesos, como el resto de los pedidos
+        id: l.id, talle: l.talle, cantidad: l.cantidad,
+        nombre:    p.nombre,
+        imagen:    p.imagen,
+        precio:    precioARS,      // en pesos, como el resto de los pedidos
         precioUSD,
-        tabla:      "productos_stock",
-        seccion:    "camiseta",
-        mayorista:  true,
+        tabla,
+        seccion:   tipo === "stock" ? "camiseta" : (p.seccion ?? "catalogo"),
+        mayorista: true,
+        ...(tipo === "encargo" && l.personalizaciones.some(Boolean) ? { personalizaciones: l.personalizaciones } : {}),
       };
     });
+    // La personalización va como renglón aparte (igual que la estampa minorista)
+    if (extras > 0) {
+      filas.push({
+        id: "estampa", nombre: "Personalización (nombre / número)", talle: "-",
+        cantidad: extras, precio: Math.round(PRECIO_PERSONALIZACION_USD * dolar.venta), precioUSD: PRECIO_PERSONALIZACION_USD,
+      });
+    }
 
-    const resumen = `${cantidadTotal} camisetas × USD ${precioUSD} = USD ${totalUSD} · ` +
-      `Dólar blue $${dolar.venta.toLocaleString("es-AR")} → $${totalARS.toLocaleString("es-AR")}`;
+    const resumen = tipo === "stock"
+      ? `[MAYORISTA] ${cantidadTotal} camisetas × USD ${precioUSD} = ${formatoUSD(totalUSD)} · ` +
+        `Dólar blue ${pesos(dolar.venta)} → ${pesos(totalARS)}`
+      : `[MAYORISTA] [ENCARGO] ${escala.nombre}: ${cantidadTotal} camisetas × USD ${precioUSD}` +
+        (extras ? ` + ${extras} personalizaciones × USD ${PRECIO_PERSONALIZACION_USD}` : "") +
+        ` = ${formatoUSD(totalUSD)} · Seña 60%: ${formatoUSD(senaUSD)} (${pesos(senaUSD * dolar.venta)}) · ` +
+        `Saldo a la entrega: ${formatoUSD(saldoUSD)} · Dólar blue ${pesos(dolar.venta)}`;
+
     const fila = {
       nombre:        comprador.nombre.trim(),
       email:         comprador.email?.trim() ?? "",
       telefono:      comprador.celular.trim(),
       provincia:     comprador.provincia ?? "",
       localidad:     comprador.localidad ?? "",
-      observaciones: `[MAYORISTA] ${resumen}`,
+      observaciones: resumen,
       items:         filas,
       total:         totalARS,
       estado:        "pendiente_transferencia",
@@ -98,12 +148,16 @@ export async function POST(request) {
     if (error) throw error;
 
     return Response.json({
-      id: data.id,
+      id: data.id, tipo,
+      escala: escala.nombre ?? null,
       cantidad: cantidadTotal,
-      precioUSD, totalUSD,
+      precioUSD, extras, totalUSD, senaUSD, saldoUSD,
       dolar: dolar.venta,
-      precioARS, totalARS,
-      items: filas.map(({ id, nombre, talle, cantidad, imagen }) => ({ id, nombre, talle, cantidad, imagen })),
+      totalARS,
+      senaARS: Math.round(senaUSD * dolar.venta),
+      items: filas.filter((f) => f.id !== "estampa").map(({ id, nombre, talle, cantidad, imagen, personalizaciones }) => (
+        { id, nombre, talle, cantidad, imagen, personalizaciones: personalizaciones ?? null }
+      )),
     });
   } catch (err) {
     console.error("[mayorista] Error:", err);

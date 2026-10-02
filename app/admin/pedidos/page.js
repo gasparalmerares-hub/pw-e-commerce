@@ -86,7 +86,7 @@ function PedidoCard({ pedido, onEstadoChange, onEliminar }) {
             <EstadoBadge estado={estadoLocal} />
             {(pedido.observaciones ?? "").includes("[MAYORISTA]") ? (
               <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700">
-                Mayorista
+                {(pedido.observaciones ?? "").includes("[ENCARGO]") ? "Mayorista · encargo" : "Mayorista"}
               </span>
             ) : (pedido.estado === "pendiente_transferencia" || pedido.metodo_pago === "transferencia" || (pedido.observaciones ?? "").includes("[TRANSFERENCIA]")) && (
               <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700">
