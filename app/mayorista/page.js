@@ -8,7 +8,8 @@ import { MINIMO_MAYORISTA, ESCALAS_MAYORISTA, precioMayoristaUSD, siguienteEscal
 import { armarImagenCamiseta, puedeCompartirArchivos, compartirArchivos, descargarArchivos } from "@/lib/imagenCamiseta";
 import { FaWhatsapp, FaDollarSign, FaBoxOpen, FaClock, FaMinus, FaPlus, FaTimes, FaSpinner, FaImages, FaDownload, FaCheckCircle } from "react-icons/fa";
 
-const WHATSAPP_ADMIN = "5492216220145";
+// Los pedidos mayoristas van al WhatsApp personal del dueño, no al de la tienda
+const WHATSAPP_ADMIN = "5491131100949";
 const ORDEN_TALLES   = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL"];
 const STORAGE_KEY    = "zeus_mayorista";
 
