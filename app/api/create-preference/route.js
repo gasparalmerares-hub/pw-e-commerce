@@ -137,7 +137,9 @@ export async function POST(request) {
             { id: "ticket" },
             { id: "atm" },
           ],
-          installments: 1,
+          // Hasta 3 cuotas. Son con interés: el recargo lo paga el comprador y
+          // la tienda cobra lo mismo que en 1 pago.
+          installments: 3,
         },
         auto_return: "approved",
         notification_url: `${baseUrl}/api/webhook`,
