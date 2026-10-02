@@ -187,7 +187,7 @@ export default function StockDetalleClient({ params }) {
             <div className="flex flex-col gap-1">
               <div className="flex items-baseline gap-3">
                 <p className="text-orange-500 text-2xl font-bold">{formatearPrecio(producto.precio)}</p>
-                <span className="text-xs text-gray-400">MercadoPago</span>
+                <span className="text-xs text-gray-400">Tarjeta de débito o crédito</span>
               </div>
               <div className="flex items-baseline gap-3">
                 <p className="text-green-700 text-2xl font-bold">
