@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useCart } from "@/context/CartContext";
 import { FaChevronRight, FaSpinner, FaWhatsapp, FaShareSquare } from "react-icons/fa";
 import { trackViewContent, trackAddToCart } from "@/lib/fbpixel";
+import CuotasMP from "@/components/CuotasMP";
 
 const WHATSAPP_ADMIN = "5492216220145";
 
@@ -200,6 +201,8 @@ export default function StockDetalleClient({ params }) {
           ) : (
             <p className="text-orange-500 text-2xl font-bold">{formatearPrecio(producto.precio)}</p>
           )}
+
+          <CuotasMP precio={producto.precio} />
 
           <p className="text-gray-600 text-sm leading-relaxed">{producto.descripcion}</p>
 

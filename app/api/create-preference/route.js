@@ -2,6 +2,7 @@ import MercadoPago, { Preference } from "mercadopago";
 import { supabaseAdmin } from "@/lib/supabase";
 import { unstable_noStore as noStore } from "next/cache";
 import { precioEnvioPara } from "@/lib/envio";
+import { MAX_CUOTAS } from "@/lib/cuotas";
 
 export const dynamic = "force-dynamic";
 
@@ -137,9 +138,8 @@ export async function POST(request) {
             { id: "ticket" },
             { id: "atm" },
           ],
-          // Hasta 6 cuotas. Son con interés: el recargo lo paga el comprador y
-          // la tienda cobra lo mismo que en 1 pago.
-          installments: 6,
+          // Cuotas con interés a cargo del comprador (ver lib/cuotas.js)
+          installments: MAX_CUOTAS,
         },
         auto_return: "approved",
         notification_url: `${baseUrl}/api/webhook`,

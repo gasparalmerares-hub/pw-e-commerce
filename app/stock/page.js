@@ -6,6 +6,7 @@ import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import FadeIn from "@/components/FadeIn";
 import { FaChevronDown, FaChevronUp, FaFilter } from "react-icons/fa";
+import { MAX_CUOTAS } from "@/lib/cuotas";
 import SkeletonCard from "@/components/SkeletonCard";
 
 function formatearPrecio(precio) {
@@ -204,6 +205,7 @@ export default function StockPage() {
                             <span className="text-green-600 ml-1">−{producto.descuento_transferencia}%</span>
                           </p>
                         )}
+                        <p className="text-gray-500 text-xs">Hasta {MAX_CUOTAS} cuotas con tarjeta</p>
                       </div>
                       <div className="block text-center bg-orange-500 text-black text-sm font-semibold py-2.5 rounded-lg hover:bg-orange-400 transition-colors mt-1">
                         Ver detalle
