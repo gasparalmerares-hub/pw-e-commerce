@@ -5,6 +5,7 @@ import {
   precioPorEscala, cantidadPersonalizaciones, redondearUSD, formatoUSD,
 } from "@/lib/mayorista";
 import { getDolarBlue } from "@/lib/dolar";
+import { atribucionDesdeRequest, conAtribucion } from "@/lib/metaAtribucion";
 
 export const dynamic = "force-dynamic";
 
@@ -131,7 +132,7 @@ export async function POST(request) {
       telefono:      comprador.celular.trim(),
       provincia:     comprador.provincia ?? "",
       localidad:     comprador.localidad ?? "",
-      observaciones: resumen,
+      observaciones: conAtribucion(resumen, atribucionDesdeRequest(request)),
       items:         filas,
       total:         totalARS,
       estado:        "pendiente_transferencia",

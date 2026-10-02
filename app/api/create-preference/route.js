@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { unstable_noStore as noStore } from "next/cache";
 import { precioEnvioPara } from "@/lib/envio";
 import { MAX_CUOTAS } from "@/lib/cuotas";
+import { atribucionDesdeRequest, conAtribucion } from "@/lib/metaAtribucion";
 
 export const dynamic = "force-dynamic";
 
@@ -77,7 +78,11 @@ export async function POST(request) {
           piso:          comprador.piso ?? "",
           departamento:  comprador.departamento ?? "",
           codigo_postal: comprador.codigoPostal ?? "",
-          observaciones: `${parchesArr.length ? `[PARCHES ESTAMPADOS → ${parchesTxt}] ` : ""}${comprador.observaciones ?? ""}`.trim(),
+          // Al final van los datos para que Meta atribuya la compra (ver lib/metaAtribucion.js)
+          observaciones: conAtribucion(
+            `${parchesArr.length ? `[PARCHES ESTAMPADOS → ${parchesTxt}] ` : ""}${comprador.observaciones ?? ""}`.trim(),
+            atribucionDesdeRequest(request)
+          ),
           items,
           total,
           estado: "pendiente",

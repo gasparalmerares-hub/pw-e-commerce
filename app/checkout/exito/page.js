@@ -24,7 +24,10 @@ export default function CheckoutExitoPage() {
         if (items && total && ts && Date.now() - ts < 60 * 60 * 1000) {
           const url = new URL(window.location.href);
           const pedidoId = url.searchParams.get("external_reference") ?? null;
-          trackPurchase({ items, total, pedidoId });
+          // Mercado Pago también vuelve acá con pagos pendientes: esos los
+          // informa el servidor (Conversions API) recién cuando se aprueban.
+          const estadoMP = url.searchParams.get("collection_status") ?? url.searchParams.get("status");
+          if (!estadoMP || estadoMP === "approved") trackPurchase({ items, total, pedidoId });
 
           // Armar mensaje de WhatsApp para el admin
           const resumen = items
