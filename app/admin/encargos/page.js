@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { FaSpinner, FaWhatsapp, FaDownload, FaTimes, FaCheck, FaImages } from "react-icons/fa";
 import { personalizacionesDe } from "@/lib/personalizacion";
 import { armarImagenCamiseta } from "@/lib/imagenCamiseta";
-import { CARGA_ENCARGO, camisetasEnCarga } from "@/lib/mayorista";
+import { CARGA_ENCARGO, camisetasEnCarga, esPedidoMayorista } from "@/lib/mayorista";
 
 // Camisetas por encargo de los pedidos pagados, agrupadas según qué pasó con
 // el proveedor. El estado vive en cada item del pedido (ver /api/admin/encargos).
@@ -23,7 +23,7 @@ function formatearFecha(iso) {
 function armarFilas(pedidos) {
   const filas = [];
   for (const p of pedidos) {
-    if (p.estado !== "pagado") continue;
+    if (p.estado !== "pagado" || esPedidoMayorista(p)) continue; // la lista es solo minorista
     (p.items ?? []).forEach((item, index) => {
       if (item.tabla !== "productos_catalogo") return;
       filas.push({
@@ -73,6 +73,7 @@ export default function EncargosPage() {
   const [ajuste,     setAjuste]     = useState("0"); // ajuste manual (camisetas propias, correcciones)
   const [ajusteDB,   setAjusteDB]   = useState("0");
   const [guardandoAjuste, setGuardandoAjuste] = useState(false);
+  const [pedidosCarga, setPedidosCarga] = useState([]); // pedidos a medida mayoristas en la carga actual
 
   async function cargar() {
     try {
@@ -81,6 +82,7 @@ export default function EncargosPage() {
       if (!Array.isArray(data)) throw new Error(data.error ?? "Error al cargar los pedidos");
       setFilas(armarFilas(data));
       setCargaAuto(camisetasEnCarga(data));
+      setPedidosCarga(data.filter((p) => p.estado === "pagado" && (p.observaciones ?? "").includes("[ENCARGO]")));
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -117,6 +119,40 @@ export default function EncargosPage() {
   }
 
   const cargaTotal = Math.max(0, cargaAuto + (parseInt(ajuste) || 0));
+
+  // Al despachar la carga a fábrica: sus camisetas mayoristas quedan marcadas
+  // como encargadas (salen del conteo) y el ajuste manual vuelve a 0.
+  async function vaciarCarga() {
+    if (!confirm(`¿Vaciar la carga? Usalo cuando la despaches a fábrica: el contador vuelve a 0.`)) return;
+    setGuardandoAjuste(true);
+    try {
+      const cambios = pedidosCarga.flatMap((p) => (p.items ?? [])
+        .map((it, index) => ({ it, index }))
+        .filter(({ it }) => it.tabla === "productos_catalogo" && !it.encargo)
+        .map(({ it, index }) => ({ pedidoId: p.id, index, id: it.id, talle: it.talle, estado: "encargado" })));
+      if (cambios.length) {
+        const res = await fetch("/api/admin/encargos", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cambios }),
+        });
+        if (!res.ok) throw new Error((await res.json()).error ?? "Error al vaciar la carga");
+      }
+      const res = await fetch("/api/admin/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ carga_ajuste: "0" }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Error al guardar el ajuste");
+      setAjuste("0");
+      setAjusteDB("0");
+      await cargar();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setGuardandoAjuste(false);
+    }
+  }
 
   const visibles     = filas.filter((f) => f.estado === pestana);
   const elegidas     = visibles.filter((f) => seleccion.has(f.key));
@@ -214,7 +250,7 @@ export default function EncargosPage() {
   return (
     <div>
       <h1 className="text-2xl font-extrabold text-gray-900 mb-1">Encargos</h1>
-      <p className="text-sm text-gray-500 mb-6">Camisetas por encargo de pedidos pagados.</p>
+      <p className="text-sm text-gray-500 mb-6">Camisetas por encargo de pedidos minoristas pagados.</p>
 
       {/* Carga a fábrica de los pedidos a medida mayoristas (se muestra en /mayorista) */}
       <section className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
@@ -242,8 +278,13 @@ export default function EncargosPage() {
         </div>
         <p className="text-xs text-gray-400 mt-2">
           Sumá tus camisetas propias (o corregí el número) con el ajuste. Lo que ves acá es lo que ven los clientes en Mayorista.
-          Al despachar la carga, marcá las camisetas como encargadas y volvé el ajuste a 0.
+          Cuando despachás la carga a fábrica, tocá “Vaciar carga” y el contador vuelve a 0.
         </p>
+        {cargaTotal > 0 && (
+          <button onClick={vaciarCarga} disabled={guardandoAjuste} className="mt-3 text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50">
+            Vaciar carga (despachada)
+          </button>
+        )}
       </section>
 
       {/* Pestañas */}
