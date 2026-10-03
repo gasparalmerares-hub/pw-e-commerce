@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { FaSpinner, FaWhatsapp, FaDownload, FaTimes, FaCheck, FaImages } from "react-icons/fa";
 import { personalizacionesDe } from "@/lib/personalizacion";
 import { armarImagenCamiseta } from "@/lib/imagenCamiseta";
+import { CARGA_ENCARGO, camisetasEnCarga } from "@/lib/mayorista";
 
 // Camisetas por encargo de los pedidos pagados, agrupadas según qué pasó con
 // el proveedor. El estado vive en cada item del pedido (ver /api/admin/encargos).
@@ -68,6 +69,10 @@ export default function EncargosPage() {
   const [guardando,  setGuardando]  = useState(false);
   const [preparando, setPreparando] = useState(false);
   const [imagenes,   setImagenes]   = useState(null); // [{ file, url }]
+  const [cargaAuto,  setCargaAuto]  = useState(0);    // camisetas mayoristas a medida esperando carga
+  const [ajuste,     setAjuste]     = useState("0"); // ajuste manual (camisetas propias, correcciones)
+  const [ajusteDB,   setAjusteDB]   = useState("0");
+  const [guardandoAjuste, setGuardandoAjuste] = useState(false);
 
   async function cargar() {
     try {
@@ -75,6 +80,7 @@ export default function EncargosPage() {
       const data = await res.json();
       if (!Array.isArray(data)) throw new Error(data.error ?? "Error al cargar los pedidos");
       setFilas(armarFilas(data));
+      setCargaAuto(camisetasEnCarga(data));
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -83,7 +89,34 @@ export default function EncargosPage() {
     }
   }
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => {
+    cargar();
+    fetch(`/api/admin/config?t=${Date.now()}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => { const v = String(parseInt(d.carga_ajuste) || 0); setAjuste(v); setAjusteDB(v); })
+      .catch(() => {});
+  }, []);
+
+  async function guardarAjuste() {
+    setGuardandoAjuste(true);
+    try {
+      const valor = String(parseInt(ajuste) || 0);
+      const res = await fetch("/api/admin/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ carga_ajuste: valor }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Error al guardar");
+      setAjuste(valor);
+      setAjusteDB(valor);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setGuardandoAjuste(false);
+    }
+  }
+
+  const cargaTotal = Math.max(0, cargaAuto + (parseInt(ajuste) || 0));
 
   const visibles     = filas.filter((f) => f.estado === pestana);
   const elegidas     = visibles.filter((f) => seleccion.has(f.key));
@@ -182,6 +215,36 @@ export default function EncargosPage() {
     <div>
       <h1 className="text-2xl font-extrabold text-gray-900 mb-1">Encargos</h1>
       <p className="text-sm text-gray-500 mb-6">Camisetas por encargo de pedidos pagados.</p>
+
+      {/* Carga a fábrica de los pedidos a medida mayoristas (se muestra en /mayorista) */}
+      <section className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="font-bold text-gray-900">Carga mayorista a fábrica</h2>
+          <p className="text-sm text-gray-700"><strong className="text-lg text-gray-900">{cargaTotal}</strong> / {CARGA_ENCARGO}</p>
+        </div>
+        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden my-2">
+          <div className={`h-full rounded-full ${cargaTotal >= CARGA_ENCARGO ? "bg-green-600" : "bg-orange-500"}`} style={{ width: `${Math.min(100, (cargaTotal / CARGA_ENCARGO) * 100)}%` }} />
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600">
+          <span>Pedidos a medida con seña: <strong>{cargaAuto}</strong></span>
+          <label className="flex items-center gap-2">
+            + Ajuste manual
+            <input
+              type="number" value={ajuste} onChange={(e) => setAjuste(e.target.value)}
+              className="w-20 bg-gray-50 border border-gray-300 rounded-lg px-2 py-1 text-gray-900 text-center focus:outline-none focus:border-orange-500"
+            />
+          </label>
+          {String(parseInt(ajuste) || 0) !== ajusteDB && (
+            <button onClick={guardarAjuste} disabled={guardandoAjuste} className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-orange-500 text-black hover:bg-orange-400 disabled:opacity-50">
+              {guardandoAjuste ? "Guardando..." : "Guardar"}
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-gray-400 mt-2">
+          Sumá tus camisetas propias (o corregí el número) con el ajuste. Lo que ves acá es lo que ven los clientes en Mayorista.
+          Al despachar la carga, marcá las camisetas como encargadas y volvé el ajuste a 0.
+        </p>
+      </section>
 
       {/* Pestañas */}
       <div className="flex gap-2 mb-4 overflow-x-auto">

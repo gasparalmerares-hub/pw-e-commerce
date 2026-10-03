@@ -261,3 +261,35 @@ export function pieMensaje(form) {
     `Te mando las fotos de las camisetas a continuación.`
   );
 }
+
+// ─── Avance de la carga a fábrica (pedidos a medida) ────────────────────────
+
+export function BarraCarga() {
+  const [carga, setCarga] = useState(null);   // { actual, capacidad } | { error }
+
+  useEffect(() => {
+    fetch("/api/mayorista/carga").then((r) => r.json()).then(setCarga).catch(() => setCarga({ error: true }));
+  }, []);
+
+  if (!carga || carga.error) return null;
+  const { actual, capacidad } = carga;
+  const completa = actual >= capacidad;
+  const pct = Math.min(100, Math.round((actual / capacidad) * 100));
+
+  return (
+    <section className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
+      <div className="flex items-baseline justify-between gap-3 mb-2">
+        <h2 className="font-bold text-gray-900">Carga actual a fábrica</h2>
+        <p className="text-sm text-gray-700"><strong className="text-lg text-gray-900">{Math.min(actual, capacidad)}</strong> / {capacidad} camisetas</p>
+      </div>
+      <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-700 ${completa ? "bg-green-600" : "bg-orange-500"}`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-xs text-gray-500 mt-2">
+        {completa
+          ? "¡Carga completa! Se despacha en estos días. Los pedidos nuevos entran en la próxima carga."
+          : `Faltan ${capacidad - actual} camisetas para completar la carga. Cuando se completa, se despacha a fábrica (demora de 2 meses aprox.).`}
+      </p>
+    </section>
+  );
+}
