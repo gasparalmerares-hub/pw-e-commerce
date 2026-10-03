@@ -24,6 +24,8 @@ export default function ConfiguracionPage() {
   const [precioEstampaDB, setPrecioEstampaDB] = useState(null);
   const [preciosProv,     setPreciosProv]     = useState({});
   const [preciosProvDB,   setPreciosProvDB]   = useState(null);
+  const [metaMayoristas,  setMetaMayoristas]  = useState(false);
+  const [metaMayoristasDB, setMetaMayoristasDB] = useState(null);
   const [cargando,        setCargando]        = useState(true);
   const [guardando,       setGuardando]       = useState(false);
   const [guardado,        setGuardado]        = useState(false);
@@ -42,7 +44,10 @@ export default function ConfiguracionPage() {
     const provincias = serializarProvincias(parsePreciosProvincias(d.precio_envio_provincias));
     setPreciosProv(JSON.parse(provincias));
     setPreciosProvDB(provincias);
-    return { envio, estampa, provincias };
+    const mayoristas = d.meta_mayoristas === "si";
+    setMetaMayoristas(mayoristas);
+    setMetaMayoristasDB(mayoristas);
+    return { envio, estampa, provincias, mayoristas };
   }
 
   useEffect(() => {
@@ -62,13 +67,14 @@ export default function ConfiguracionPage() {
         precio_envio: precioEnvio,
         precio_estampa: precioEstampa,
         precio_envio_provincias: serializarProvincias(preciosProv),
+        meta_mayoristas: metaMayoristas ? "si" : "no",
       }),
     });
 
     if (res.ok) {
       const esperadoProv = serializarProvincias(preciosProv);
       const enDB = await cargarDesdeDB();
-      if (enDB && enDB.envio === String(precioEnvio) && enDB.estampa === String(precioEstampa) && enDB.provincias === esperadoProv) {
+      if (enDB && enDB.envio === String(precioEnvio) && enDB.estampa === String(precioEstampa) && enDB.provincias === esperadoProv && enDB.mayoristas === metaMayoristas) {
         setGuardado(true);
         setTimeout(() => setGuardado(false), 3000);
       } else {
@@ -84,6 +90,7 @@ export default function ConfiguracionPage() {
   const sinGuardarEnvio   = precioEnvioDB   !== null && String(precioEnvio)   !== String(precioEnvioDB);
   const sinGuardarEstampa = precioEstampaDB !== null && String(precioEstampa) !== String(precioEstampaDB);
   const sinGuardarProv    = preciosProvDB   !== null && serializarProvincias(preciosProv) !== preciosProvDB;
+  const sinGuardarMeta    = metaMayoristasDB !== null && metaMayoristas !== metaMayoristasDB;
 
   return (
     <div>
@@ -156,6 +163,25 @@ export default function ConfiguracionPage() {
                 {sinGuardarEstampa && <span className="text-yellow-600 ml-2">· cambios sin guardar</span>}
               </p>
             </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col gap-3">
+            <h2 className="text-base font-bold text-gray-900">Meta (Facebook e Instagram)</h2>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={metaMayoristas}
+                onChange={(e) => setMetaMayoristas(e.target.checked)}
+                className="mt-0.5 w-5 h-5 accent-orange-500 shrink-0"
+              />
+              <span className="text-sm text-gray-700">
+                Enviar las ventas <strong>mayoristas</strong> a Meta
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  Apagado: Meta recibe solo las ventas minoristas, así las métricas de tus anuncios no se mezclan con los pedidos mayoristas.
+                </span>
+              </span>
+            </label>
+            {sinGuardarMeta && <p className="text-xs text-yellow-600">· cambios sin guardar</p>}
           </div>
 
           {error && (
