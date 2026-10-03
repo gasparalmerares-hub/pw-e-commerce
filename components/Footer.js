@@ -7,6 +7,7 @@ const enlaces = [
   { href: "/catalogo", label: "Catálogo" },
   { href: "/kids", label: "Niños" },
   { href: "/stock", label: "Stock" },
+  { href: "/mayorista", label: "Mayorista" },
   { href: "/guia-de-talles", label: "Guía de Talles" },
   { href: "/contacto", label: "Contacto" },
 ];

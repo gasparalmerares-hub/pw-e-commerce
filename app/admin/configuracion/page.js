@@ -24,6 +24,8 @@ export default function ConfiguracionPage() {
   const [precioEstampaDB, setPrecioEstampaDB] = useState(null);
   const [preciosProv,     setPreciosProv]     = useState({});
   const [preciosProvDB,   setPreciosProvDB]   = useState(null);
+  const [stockMayorista,  setStockMayorista]  = useState(false);
+  const [stockMayoristaDB, setStockMayoristaDB] = useState(null);
   const [metaMayoristas,  setMetaMayoristas]  = useState(false);
   const [metaMayoristasDB, setMetaMayoristasDB] = useState(null);
   const [cargando,        setCargando]        = useState(true);
@@ -47,7 +49,10 @@ export default function ConfiguracionPage() {
     const mayoristas = d.meta_mayoristas === "si";
     setMetaMayoristas(mayoristas);
     setMetaMayoristasDB(mayoristas);
-    return { envio, estampa, provincias, mayoristas };
+    const stockPublico = d.mayorista_stock_publico === "si";
+    setStockMayorista(stockPublico);
+    setStockMayoristaDB(stockPublico);
+    return { envio, estampa, provincias, mayoristas, stockPublico };
   }
 
   useEffect(() => {
@@ -68,13 +73,14 @@ export default function ConfiguracionPage() {
         precio_estampa: precioEstampa,
         precio_envio_provincias: serializarProvincias(preciosProv),
         meta_mayoristas: metaMayoristas ? "si" : "no",
+        mayorista_stock_publico: stockMayorista ? "si" : "no",
       }),
     });
 
     if (res.ok) {
       const esperadoProv = serializarProvincias(preciosProv);
       const enDB = await cargarDesdeDB();
-      if (enDB && enDB.envio === String(precioEnvio) && enDB.estampa === String(precioEstampa) && enDB.provincias === esperadoProv && enDB.mayoristas === metaMayoristas) {
+      if (enDB && enDB.envio === String(precioEnvio) && enDB.estampa === String(precioEstampa) && enDB.provincias === esperadoProv && enDB.mayoristas === metaMayoristas && enDB.stockPublico === stockMayorista) {
         setGuardado(true);
         setTimeout(() => setGuardado(false), 3000);
       } else {
@@ -91,6 +97,7 @@ export default function ConfiguracionPage() {
   const sinGuardarEstampa = precioEstampaDB !== null && String(precioEstampa) !== String(precioEstampaDB);
   const sinGuardarProv    = preciosProvDB   !== null && serializarProvincias(preciosProv) !== preciosProvDB;
   const sinGuardarMeta    = metaMayoristasDB !== null && metaMayoristas !== metaMayoristasDB;
+  const sinGuardarStock   = stockMayoristaDB !== null && stockMayorista !== stockMayoristaDB;
 
   return (
     <div>
@@ -163,6 +170,25 @@ export default function ConfiguracionPage() {
                 {sinGuardarEstampa && <span className="text-yellow-600 ml-2">· cambios sin guardar</span>}
               </p>
             </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col gap-3">
+            <h2 className="text-base font-bold text-gray-900">Mayorista</h2>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={stockMayorista}
+                onChange={(e) => setStockMayorista(e.target.checked)}
+                className="mt-0.5 w-5 h-5 accent-orange-500 shrink-0"
+              />
+              <span className="text-sm text-gray-700">
+                Mostrar <strong>Mayorista Stock</strong> al público
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  Apagado: en la sección Mayorista solo se ve Pedido a medida. Podés probar Stock igual entrando a /mayorista#stock.
+                </span>
+              </span>
+            </label>
+            {sinGuardarStock && <p className="text-xs text-yellow-600">· cambios sin guardar</p>}
           </div>
 
           <div className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col gap-3">

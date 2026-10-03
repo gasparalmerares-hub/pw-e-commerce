@@ -14,6 +14,7 @@ import {
   FaTimes,
   FaStore,
   FaChild,
+  FaBoxes,
 } from "react-icons/fa";
 
 const links = [
@@ -21,6 +22,7 @@ const links = [
   { href: "/catalogo",       label: "Catálogo",        icon: FaTshirt },
   { href: "/kids",           label: "Niños",           icon: FaChild },
   { href: "/stock",          label: "Stock",           icon: FaStore },
+  { href: "/mayorista",      label: "Mayorista",       icon: FaBoxes },
   { href: "/guia-de-talles", label: "Guía de Talles",  icon: FaRuler },
   { href: "/contacto",       label: "Contacto",        icon: FaEnvelope },
 ];

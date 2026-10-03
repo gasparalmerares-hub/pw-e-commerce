@@ -8,6 +8,7 @@ export default async function sitemap() {
     { url: `${BASE_URL}/catalogo`, lastModified: new Date(), priority: 0.9 },
     { url: `${BASE_URL}/kids`, lastModified: new Date(), priority: 0.8 },
     { url: `${BASE_URL}/stock`, lastModified: new Date(), priority: 0.9 },
+    { url: `${BASE_URL}/mayorista`, lastModified: new Date(), priority: 0.7 },
     { url: `${BASE_URL}/guia-de-talles`, lastModified: new Date(), priority: 0.6 },
     { url: `${BASE_URL}/contacto`, lastModified: new Date(), priority: 0.5 },
   ];
