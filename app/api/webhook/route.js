@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendPurchaseEvent } from "@/lib/metaConversions";
+import { sendTikTokPurchase } from "@/lib/tiktokEvents";
 import { enviarConfirmacionPago } from "@/lib/emailConfirmacion";
 import { unstable_noStore as noStore } from "next/cache";
 
@@ -122,8 +123,9 @@ export async function POST(request) {
     }
 
     // 4. Purchase server-side a Meta (deduplica con el pixel del navegador
-    //    por event_id = pedido.id).
+    //    por event_id = pedido.id). Lo mismo para TikTok.
     await sendPurchaseEvent(pedido);
+    await sendTikTokPurchase(pedido);
 
     // 5. Descontar stock. Solo aplica a productos_stock: el catálogo y niños
     //    son por encargo y no manejan stock real.

@@ -16,6 +16,13 @@ export default function TikTokPixel() {
     ttPage();
   }, [pathname]);
 
+  // Si llega desde un anuncio, guardar el id del clic (ttclid) para mandarlo
+  // con la compra desde el servidor (lib/tiktokEvents.js).
+  useEffect(() => {
+    const ttclid = new URLSearchParams(window.location.search).get("ttclid");
+    if (ttclid) document.cookie = `ttclid=${encodeURIComponent(ttclid)}; path=/; max-age=${30 * 24 * 3600}; SameSite=Lax`;
+  }, []);
+
   if (!TT_PIXEL_ENABLED) return null;
 
   return (

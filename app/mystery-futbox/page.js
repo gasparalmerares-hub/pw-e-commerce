@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { supabase } from "@/lib/supabase";
+import { trackAddToCart } from "@/lib/fbpixel";
 import FadeIn from "@/components/FadeIn";
 import { FaSpinner } from "react-icons/fa";
 
@@ -48,6 +49,7 @@ export default function MysteryFutboxPage() {
   function handleAgregar() {
     if (!talleSeleccionado) { setEstado("warning"); return; }
     agregarAlCarrito({ id: "mystery-futbox", nombre: data.nombre, talle: talleSeleccionado, precio: data.precio, imagen: data.imagen });
+    trackAddToCart({ id: "mystery-futbox", nombre: data.nombre, precio: data.precio, cantidad: 1, talle: talleSeleccionado });
     setEstado("success");
   }
 
