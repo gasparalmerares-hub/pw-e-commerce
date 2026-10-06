@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProgressBar from "@/components/ProgressBar";
 import MetaPixel from "@/components/MetaPixel";
+import TikTokPixel from "@/components/TikTokPixel";
 import { CartProvider } from "@/context/CartContext";
 
 export const metadata = {
@@ -38,6 +39,7 @@ export default function RootLayout({ children }) {
     <html lang="es">
       <body className="bg-[#f5f5f0] text-gray-900 antialiased">
         <MetaPixel />
+        <TikTokPixel />
         <CartProvider>
           <ProgressBar />
           <Navbar />
