@@ -5,7 +5,8 @@ import { FaSpinner, FaWhatsapp, FaEnvelope } from "react-icons/fa";
 
 // Carritos abandonados (ver lib/carritos.js y /api/admin/carritos): gente que
 // dejó sus datos o fue a pagar y no terminó. Desde acá se le escribe por
-// WhatsApp con un mensaje ya armado. "Contactado" se guarda en este navegador.
+// WhatsApp con un mensaje ya armado. "Contactado" se guarda en el servidor
+// (POST /api/admin/carritos), así se ve igual en el celular y en la compu.
 
 const TIPOS = {
   datos:         "Dejó sus datos y no pagó",
@@ -13,7 +14,17 @@ const TIPOS = {
   transferencia: "Eligió transferencia y no pagó",
 };
 
-const STORAGE_KEY = "zeus_carritos_contactados";
+// Donde se guardaban las marcas antes (solo en cada navegador): al abrir la
+// página se suben al servidor una vez y se borran de acá.
+const STORAGE_VIEJO = "zeus_carritos_contactados";
+
+function guardarContactado(ids, contactado) {
+  return fetch("/api/admin/carritos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, contactado }),
+  }).then((r) => (r.ok ? r.json() : Promise.reject()));
+}
 
 function pesos(n) {
   return "$" + Number(n || 0).toLocaleString("es-AR");
@@ -50,15 +61,34 @@ export default function CarritosPage() {
   useEffect(() => {
     fetch("/api/admin/carritos", { cache: "no-store" })
       .then((r) => r.json())
-      .then((d) => (Array.isArray(d) ? setCarritos(d) : setError(d.error || "No se pudieron cargar")))
+      .then(async (d) => {
+        if (!Array.isArray(d)) { setError(d.error || "No se pudieron cargar"); return; }
+        const delServidor = Object.fromEntries(d.filter((c) => c.contactado).map((c) => [c.id, true]));
+        // Marcas viejas de este navegador que el servidor todavía no tiene
+        let viejas = [];
+        try { viejas = Object.entries(JSON.parse(localStorage.getItem(STORAGE_VIEJO) || "{}")).filter(([id, v]) => v && !delServidor[id]).map(([id]) => id); } catch {}
+        if (viejas.length) {
+          try {
+            await guardarContactado(viejas, true);
+            viejas.forEach((id) => { delServidor[id] = true; });
+            localStorage.removeItem(STORAGE_VIEJO);
+          } catch {}
+        } else {
+          try { localStorage.removeItem(STORAGE_VIEJO); } catch {}
+        }
+        setContactados(delServidor);
+        setCarritos(d);
+      })
       .catch(() => setError("No se pudieron cargar"));
-    try { setContactados(JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}")); } catch {}
   }, []);
 
   function marcar(id, valor) {
-    const nuevo = { ...contactados, [id]: valor };
-    setContactados(nuevo);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(nuevo)); } catch {}
+    const antes = contactados;
+    setContactados({ ...contactados, [id]: valor });
+    guardarContactado([id], valor).catch(() => {
+      setContactados(antes);
+      alert("No se pudo guardar. Revisá la conexión y probá de nuevo.");
+    });
   }
 
   const lista = (carritos ?? []).filter((c) => verCompraron || !c.yaCompro);

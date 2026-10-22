@@ -5,6 +5,9 @@ import { supabaseAdmin } from "@/lib/supabase";
 // por dia a Supabase y reducimos Edge Requests.
 const CACHE = { "Cache-Control": "public, s-maxage=300, max-age=300, stale-while-revalidate=600" };
 
+// Datos internos del panel que también viven en configuracion y no son públicos
+const CLAVES_PRIVADAS = ["carritos_contactados"];
+
 export async function GET() {
   const { data, error } = await supabaseAdmin()
     .from("configuracion")
@@ -15,6 +18,8 @@ export async function GET() {
     return Response.json({ precio_envio: "0" }, { headers: { "Cache-Control": "no-store" } });
   }
 
-  const config = Object.fromEntries((data ?? []).map(({ clave, valor }) => [clave, valor]));
+  const config = Object.fromEntries((data ?? [])
+    .filter(({ clave }) => !CLAVES_PRIVADAS.includes(clave))
+    .map(({ clave, valor }) => [clave, valor]));
   return Response.json(config, { headers: CACHE });
 }
