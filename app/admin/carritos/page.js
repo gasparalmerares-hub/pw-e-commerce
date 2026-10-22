@@ -61,9 +61,9 @@ export default function CarritosPage() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(nuevo)); } catch {}
   }
 
-  const lista = (carritos ?? []).filter((c) => verCompraron || !c.comproDespues);
-  const compraron = (carritos ?? []).filter((c) => c.comproDespues).length;
-  const montoPendiente = lista.filter((c) => !c.comproDespues).reduce((s, c) => s + c.total, 0);
+  const lista = (carritos ?? []).filter((c) => verCompraron || !c.yaCompro);
+  const compraron = (carritos ?? []).filter((c) => c.yaCompro).length;
+  const montoPendiente = lista.filter((c) => !c.yaCompro).reduce((s, c) => s + c.total, 0);
 
   return (
     <div>
@@ -78,12 +78,12 @@ export default function CarritosPage() {
       {carritos && (
         <>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-4 text-sm text-gray-700">
-            <span><strong className="text-lg text-gray-900">{lista.filter((c) => !c.comproDespues).length}</strong> sin comprar</span>
+            <span><strong className="text-lg text-gray-900">{lista.filter((c) => !c.yaCompro).length}</strong> sin comprar</span>
             <span><strong className="text-lg text-gray-900">{pesos(montoPendiente)}</strong> en juego</span>
             {compraron > 0 && (
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={verCompraron} onChange={(e) => setVerCompraron(e.target.checked)} className="accent-orange-500" />
-                Mostrar los {compraron} que después compraron
+                Mostrar los {compraron} que ya compraron
               </label>
             )}
           </div>
@@ -94,14 +94,14 @@ export default function CarritosPage() {
             {lista.map((c) => {
               const hecho = !!contactados[c.id];
               return (
-                <div key={c.id} className={`bg-white border rounded-xl p-4 ${hecho || c.comproDespues ? "border-gray-200 opacity-60" : "border-gray-200"}`}>
+                <div key={c.id} className={`bg-white border rounded-xl p-4 ${hecho || c.yaCompro ? "border-gray-200 opacity-60" : "border-gray-200"}`}>
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <p className="font-bold text-gray-900">{titulo(c.nombre) || "Sin nombre"}</p>
                     <p className="text-xs text-gray-500">{fecha(c.fecha)}{c.intentos > 1 ? ` · ${c.intentos} intentos` : ""}</p>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-1 text-xs">
                     <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-semibold">{TIPOS[c.tipo]}</span>
-                    {c.comproDespues && <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-800 font-semibold">Después compró</span>}
+                    {c.yaCompro && <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-800 font-semibold">Ya compró</span>}
                   </div>
                   <ul className="text-sm text-gray-700 mt-2">
                     {c.productos.map((p, i) => (

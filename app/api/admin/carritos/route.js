@@ -10,7 +10,7 @@ const DIAS = 90;
 
 // Carritos abandonados de los últimos 90 días (solo admin, ver middleware):
 // pedidos minoristas que quedaron "pendiente". Una fila por persona (la más
-// reciente), avisando si después compró igual.
+// reciente), avisando si igual compró.
 export async function GET() {
   noStore();
   try {
@@ -21,12 +21,16 @@ export async function GET() {
         .select("id, created_at, nombre, email, telefono, provincia, localidad, items, total, observaciones, metodo_pago")
         .eq("estado", "pendiente").gte("created_at", desde).order("created_at", { ascending: false }),
       db.from("pedidos").select("email, telefono, created_at")
-        .in("estado", ["pagado", "enviado", "entregado"]).gte("created_at", desde),
+        .in("estado", ["pagado", "enviado", "entregado"])
+        .gte("created_at", new Date(Date.now() - (DIAS + 2) * 864e5).toISOString()),
     ]);
     if (error) throw error;
 
-    const comproDespues = (p) => (pagos ?? []).some((q) =>
-      q.created_at >= p.created_at && (
+    // Ya compró: tiene un pedido pagado desde 2 días antes del abandono en
+    // adelante. Cubre al que compró después y al que pagó por transferencia y
+    // enseguida tocó también Mercado Pago (o al revés) y dejó ese sin pagar.
+    const yaCompro = (p) => (pagos ?? []).some((q) =>
+      new Date(q.created_at) >= new Date(p.created_at) - 2 * 864e5 && (
         (p.email && q.email && q.email.trim().toLowerCase() === p.email.trim().toLowerCase()) ||
         (claveTelefono(p.telefono).length === 8 && claveTelefono(q.telefono) === claveTelefono(p.telefono))
       ));
@@ -48,7 +52,7 @@ export async function GET() {
         productos: (p.items ?? []).filter((i) => i.id !== "envio" && i.id !== "estampa")
                      .map((i) => ({ nombre: i.nombre, talle: i.talle, cantidad: Number(i.cantidad) || 1 })),
         total:     Number(p.total) || 0,
-        comproDespues: comproDespues(p),
+        yaCompro:  yaCompro(p),
         intentos:  1,
       });
     }
