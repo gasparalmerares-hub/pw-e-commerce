@@ -10,6 +10,7 @@ const enlaces = [
   { href: "/mayorista", label: "Mayorista" },
   { href: "/guia-de-talles", label: "Guía de Talles" },
   { href: "/contacto", label: "Contacto" },
+  { href: "/politica-de-privacidad", label: "Política de privacidad" },
 ];
 
 export default function Footer() {

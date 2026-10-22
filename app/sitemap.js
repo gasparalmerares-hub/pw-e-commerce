@@ -11,6 +11,7 @@ export default async function sitemap() {
     { url: `${BASE_URL}/mayorista`, lastModified: new Date(), priority: 0.7 },
     { url: `${BASE_URL}/guia-de-talles`, lastModified: new Date(), priority: 0.6 },
     { url: `${BASE_URL}/contacto`, lastModified: new Date(), priority: 0.5 },
+    { url: `${BASE_URL}/politica-de-privacidad`, lastModified: new Date(), priority: 0.2 },
   ];
 
   const [{ data: catalogo }, { data: stock }] = await Promise.all([
