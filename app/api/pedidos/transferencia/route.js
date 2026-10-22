@@ -2,13 +2,14 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { unstable_noStore as noStore } from "next/cache";
 import { precioEnvioPara } from "@/lib/envio";
 import { atribucionDesdeRequest, conAtribucion } from "@/lib/metaAtribucion";
+import { borrarCarrito } from "@/lib/carritosServidor";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request) {
   noStore();
   try {
-    const { items, comprador, parches } = await request.json();
+    const { items, comprador, parches, carritoId } = await request.json();
     const parchesArr = Array.isArray(parches) ? parches : [];
 
     // El envío y la estampa se calculan acá con los valores de configuración
@@ -75,6 +76,7 @@ export async function POST(request) {
     }
 
     console.log("[transferencia] Pedido creado:", data.id);
+    await borrarCarrito(carritoId); // el carrito abandonado guardado mientras completaba los datos
     return Response.json({ id: data.id });
   } catch (err) {
     console.error("[transferencia] Excepción:", err);

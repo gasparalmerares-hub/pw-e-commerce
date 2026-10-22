@@ -4,6 +4,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { precioEnvioPara } from "@/lib/envio";
 import { MAX_CUOTAS } from "@/lib/cuotas";
 import { atribucionDesdeRequest, conAtribucion } from "@/lib/metaAtribucion";
+import { borrarCarrito } from "@/lib/carritosServidor";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,7 @@ export async function POST(request) {
   }
 
   try {
-    const { items, comprador, parches } = await request.json();
+    const { items, comprador, parches, carritoId } = await request.json();
     const parchesArr = Array.isArray(parches) ? parches : [];
 
     // MercadoPago NO sigue redirects en el webhook: si el notification_url
@@ -90,6 +91,8 @@ export async function POST(request) {
         .select("id")
         .single();
       pedidoId = data?.id ?? null;
+      // El carrito abandonado guardado mientras completaba los datos ya no hace falta
+      if (pedidoId) await borrarCarrito(carritoId);
     } catch (e) {
       console.error("Error saving pedido (no bloqueante):", e);
     }

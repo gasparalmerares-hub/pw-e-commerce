@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { FaBoxOpen, FaTshirt, FaSignOutAlt, FaStar, FaClipboardList, FaCog, FaChild, FaBoxes } from "react-icons/fa";
+import { FaBoxOpen, FaTshirt, FaSignOutAlt, FaStar, FaClipboardList, FaCog, FaChild, FaBoxes, FaShoppingCart } from "react-icons/fa";
 
 // Script síncrono que se ejecuta al parsear el HTML, ANTES de que React
 // hidrate y antes de que el navegador muestre el prompt de "instalar app".
@@ -55,6 +55,7 @@ const secciones = [
   { href: "/admin/especiales",     label: "Destacados", icon: FaStar          },
   { href: "/admin/pedidos",        label: "Pedidos",    icon: FaClipboardList },
   { href: "/admin/encargos",       label: "Encargos",   icon: FaBoxes         },
+  { href: "/admin/carritos",       label: "Carritos",   icon: FaShoppingCart  },
   { href: "/admin/configuracion",  label: "Config",     icon: FaCog           },
 ];
 
@@ -136,7 +137,7 @@ export default function AdminLayout({ children }) {
           <Link
             key={href}
             href={href}
-            className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors ${
+            className={`flex-1 min-w-0 flex flex-col items-center gap-1 py-3 text-[10px] font-medium transition-colors ${
               pathname.startsWith(href)
                 ? "text-orange-500"
                 : "text-gray-400 hover:text-gray-900"

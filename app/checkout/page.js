@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { FaChevronRight, FaCreditCard, FaWhatsapp } from "react-icons/fa";
@@ -21,6 +21,16 @@ function Campo({ label, children }) {
       {children}
     </div>
   );
+}
+
+const CARRITO_KEY = "zeus_carrito_id";
+
+function carritoGuardado() {
+  try { return localStorage.getItem(CARRITO_KEY); } catch { return null; }
+}
+
+function olvidarCarrito() {
+  try { localStorage.removeItem(CARRITO_KEY); } catch {}
 }
 
 const inputClass =
@@ -50,6 +60,29 @@ export default function CheckoutPage() {
   const [cargando,         setCargando]         = useState(false);
   const [cargandoTransf,   setCargandoTransf]   = useState(false);
   const [error,            setError]            = useState(null);
+
+  // Carrito abandonado: apenas hay teléfono o mail, se guarda (con un par de
+  // segundos de espera) para poder contactar a quien no termine la compra.
+  // Se borra solo al crear el pedido (ver /api/carritos).
+  const pedidoCreado = useRef(false);
+  useEffect(() => {
+    if (!items.length || pedidoCreado.current) return;
+    const telefono = `${form.codigoArea}${form.celular}`.replace(/\D/g, "");
+    if (!/^\S+@\S+\.\S+$/.test(form.email.trim()) && telefono.length < 8) return;
+    const t = setTimeout(() => {
+      if (pedidoCreado.current) return;
+      const id = carritoGuardado();
+      fetch("/api/carritos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, nombre: form.nombre, email: form.email, telefono, provincia: form.provincia, localidad: form.localidad, items }),
+      })
+        .then((r) => r.json())
+        .then((d) => { if (d.id && !pedidoCreado.current) try { localStorage.setItem(CARRITO_KEY, d.id); } catch {} })
+        .catch(() => {});
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [items, form.nombre, form.email, form.codigoArea, form.celular, form.provincia, form.localidad]);
 
   useEffect(() => {
     fetch("/api/config", { cache: "no-store" })
@@ -159,12 +192,14 @@ export default function CheckoutPage() {
       const res = await fetch("/api/create-preference", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: itemsConPers, comprador: form, parches: parchesPayload }),
+        body: JSON.stringify({ items: itemsConPers, comprador: form, parches: parchesPayload, carritoId: carritoGuardado() }),
       });
 
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.error || "Error al procesar el pago");
+      pedidoCreado.current = true;
+      olvidarCarrito();
 
       // Guardar resumen para disparar Purchase en /checkout/exito al volver de MP
       try {
@@ -217,12 +252,14 @@ export default function CheckoutPage() {
       const res = await fetch("/api/pedidos/transferencia", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: itemsTransf, comprador: form, parches: parchesPayload }),
+        body: JSON.stringify({ items: itemsTransf, comprador: form, parches: parchesPayload, carritoId: carritoGuardado() }),
       });
 
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.error || "Error al registrar el pedido");
+      pedidoCreado.current = true;
+      olvidarCarrito();
 
       const resumen = itemsTransf
         .map((i) => `• ${i.nombre} T.${i.talle} x${i.cantidad} = ${formatearPrecio(i.precioTransf * i.cantidad)}${i.descuentoTransferencia > 0 ? ` _(−${i.descuentoTransferencia}% transf.)_` : ""}`)

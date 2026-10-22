@@ -14,6 +14,7 @@ const secciones = [
     titulo: "Qué datos pedimos y para qué",
     texto: [
       "Cuando hacés un pedido te pedimos nombre, email, teléfono y dirección de entrega. Los usamos para preparar y enviar tu pedido, confirmarte el pago y comunicarnos con vos por cualquier consulta sobre la compra.",
+      "Si empezás a completar tus datos en \"Finalizar compra\" y no terminás la compra, podemos guardarlos junto con los productos que elegiste para escribirte y ayudarte a completarla.",
       "Si nos escribís por el formulario de contacto o por WhatsApp, usamos tus datos solo para responderte.",
       "Los datos de tu tarjeta los carga y procesa directamente Mercado Pago: nosotros no los vemos ni los guardamos.",
     ],
