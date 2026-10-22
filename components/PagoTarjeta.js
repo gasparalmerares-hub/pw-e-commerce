@@ -8,7 +8,7 @@ import { MAX_CUOTAS } from "@/lib/cuotas";
 // Finalizar compra, para no mandar al comprador a la página de Mercado Pago.
 // Los datos de la tarjeta los carga y guarda Mercado Pago (la web solo recibe
 // un token). La public key no es secreta: va en la página igual que el píxel.
-export const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY || "";
+export const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY || "APP_USR-d4f9ec63-3867-4bf7-8b40-40f927697f2c";
 
 function cargarScript(src, attrs = {}) {
   return new Promise((resolve, reject) => {
