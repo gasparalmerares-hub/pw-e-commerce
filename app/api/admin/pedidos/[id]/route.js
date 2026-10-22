@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendPurchaseEvent } from "@/lib/metaConversions";
 import { sendTikTokPurchase } from "@/lib/tiktokEvents";
+import { sendGAPurchase } from "@/lib/gaServer";
 import { enviarConfirmacionPago } from "@/lib/emailConfirmacion";
 import { NextResponse } from "next/server";
 
@@ -69,6 +70,7 @@ export async function PATCH(request, { params }) {
       // transferencias marcadas como pagadas también cuentan en las métricas.
       await sendPurchaseEvent(pedidoActual);
       await sendTikTokPurchase(pedidoActual);
+      await sendGAPurchase(pedidoActual);
       // Email de confirmación al comprador (mismo que reciben los de MP).
       await enviarConfirmacionPago(pedidoActual);
     }
