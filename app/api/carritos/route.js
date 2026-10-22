@@ -1,8 +1,29 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { MARCA_CARRITO } from "@/lib/carritos";
+import { esPedidoMayorista } from "@/lib/mayorista";
+import { esUUID, itemsVigentes } from "@/lib/carritosServidor";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const corto = (v, n) => String(v ?? "").trim().slice(0, n);
+
+export const dynamic = "force-dynamic";
+
+// El botón "Terminar mi compra" del mail de recordatorio lleva a
+// /carrito?recuperar=<id>, que pide acá los productos de ese carrito con
+// precio y stock de hoy. Devuelve solo productos, nunca datos de la persona.
+export async function GET(request) {
+  const id = new URL(request.url).searchParams.get("id");
+  if (!esUUID(id)) return Response.json({ items: [] }, { status: 400 });
+  try {
+    const db = supabaseAdmin();
+    const { data: p } = await db.from("pedidos").select("items, observaciones")
+      .eq("id", id).eq("estado", "pendiente").maybeSingle();
+    const items = p && !esPedidoMayorista(p) ? await itemsVigentes(db, p.items) : [];
+    return Response.json({ items }, { headers: { "Cache-Control": "no-store" } });
+  } catch (err) {
+    console.error("[carritos] Error al recuperar:", err?.message);
+    return Response.json({ items: [] }, { status: 500 });
+  }
+}
 
 // Guarda (o actualiza) el carrito de quien está en Finalizar compra apenas
 // escribió su teléfono o mail, para poder contactarlo si no termina la
@@ -39,7 +60,7 @@ export async function POST(request) {
     };
 
     const db = supabaseAdmin();
-    if (UUID_RE.test(b?.id ?? "")) {
+    if (esUUID(b?.id)) {
       const { data } = await db.from("pedidos").update(fila)
         .eq("id", b.id).eq("estado", "pendiente").like("observaciones", `${MARCA_CARRITO}%`)
         .select("id").maybeSingle();

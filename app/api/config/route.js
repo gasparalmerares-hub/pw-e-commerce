@@ -6,7 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 const CACHE = { "Cache-Control": "public, s-maxage=300, max-age=300, stale-while-revalidate=600" };
 
 // Datos internos del panel que también viven en configuracion y no son públicos
-const CLAVES_PRIVADAS = ["carritos_contactados"];
+const CLAVES_PRIVADAS = ["carritos_contactados", "carritos_mail_enviado"];
 
 export async function GET() {
   const { data, error } = await supabaseAdmin()

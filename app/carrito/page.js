@@ -1,15 +1,48 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
-import { FaWhatsapp, FaTrash, FaTimes, FaArrowRight } from "react-icons/fa";
+import { FaWhatsapp, FaTrash, FaTimes, FaArrowRight, FaSpinner } from "react-icons/fa";
+import EnvioInfo from "@/components/EnvioInfo";
 
 function formatearPrecio(precio) {
   return "$" + precio.toLocaleString("es-AR");
 }
 
 export default function CarritoPage() {
-  const { items, quitarDelCarrito, vaciarCarrito, total } = useCart();
+  const { items, hidratado, agregarAlCarrito, cantidadEnCarrito, quitarDelCarrito, vaciarCarrito, total } = useCart();
+
+  // Botón "Terminar mi compra" del mail de recordatorio (lib/recordatorioCarrito.js):
+  // /carrito?recuperar=<id> vuelve a cargar esos productos con el precio de hoy.
+  // Espera a que el carrito se lea del navegador para no pisarlo.
+  const [recuperando, setRecuperando] = useState(false);
+  useEffect(() => {
+    if (!hidratado) return;
+    const id = new URLSearchParams(window.location.search).get("recuperar");
+    if (!id) return;
+    setRecuperando(true);
+    fetch(`/api/carritos?id=${encodeURIComponent(id)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        for (const i of d.items ?? []) {
+          if (!cantidadEnCarrito(i.id, i.talle)) agregarAlCarrito({ ...i, stock: i.stock ?? undefined });
+        }
+        try { localStorage.setItem("zeus_carrito_id", id); } catch {}
+      })
+      .catch(() => {})
+      .finally(() => setRecuperando(false));
+    // Solo una vez, al terminar de leer el carrito guardado
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hidratado]);
+
+  if (items.length === 0 && recuperando) {
+    return (
+      <main className="max-w-5xl mx-auto px-4 py-16 flex justify-center">
+        <FaSpinner className="text-orange-500 text-3xl animate-spin" />
+      </main>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -79,10 +112,11 @@ export default function CarritoPage() {
 
       {/* Total y acciones — visible solo en desktop */}
       <div className="hidden md:block">
-        <div className="flex justify-between items-center border-t border-gray-200 pt-4 mb-6">
+        <div className="flex justify-between items-center border-t border-gray-200 pt-4 mb-2">
           <span className="text-lg font-bold text-gray-900">Total</span>
           <span className="text-2xl font-extrabold text-orange-500">{formatearPrecio(total)}</span>
         </div>
+        <EnvioInfo className="mb-6 text-sm" />
 
         <div className="flex flex-col gap-3 max-w-sm">
           <Link
@@ -115,10 +149,11 @@ export default function CarritoPage() {
 
       {/* Sticky footer — solo en mobile */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl p-4 z-40">
-        <div className="flex justify-between items-center mb-3">
+        <div className="flex justify-between items-center mb-1">
           <span className="font-semibold text-gray-900">Total</span>
           <span className="text-xl font-extrabold text-orange-500">{formatearPrecio(total)}</span>
         </div>
+        <EnvioInfo className="mb-3 text-xs" />
         <div className="flex gap-3">
           <button
             onClick={vaciarCarrito}

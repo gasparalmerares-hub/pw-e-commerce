@@ -7,6 +7,8 @@ import { FaSpinner, FaWhatsapp, FaEnvelope } from "react-icons/fa";
 // dejó sus datos o fue a pagar y no terminó. Desde acá se le escribe por
 // WhatsApp con un mensaje ya armado. "Contactado" se guarda en el servidor
 // (POST /api/admin/carritos), así se ve igual en el celular y en la compu.
+// A quien dejó su mail le llega además un recordatorio automático una vez
+// (lib/recordatorioCarrito.js); acá se ve como "Le llegó el mail".
 
 const TIPOS = {
   datos:         "Dejó sus datos y no pagó",
@@ -100,6 +102,7 @@ export default function CarritosPage() {
       <h1 className="text-2xl font-extrabold text-gray-900 mb-1">Carritos abandonados</h1>
       <p className="text-sm text-gray-500 mb-6">
         Gente que dejó sus datos o fue a pagar y no terminó la compra (últimos 90 días). Escribiles por WhatsApp con el mensaje ya armado.
+        A los que dejaron su mail, la web les manda sola un recordatorio al día siguiente (salvo que hayan elegido transferencia o ya los marques como contactados).
       </p>
 
       {error && <p className="text-red-600 text-sm">{error}</p>}
@@ -132,6 +135,7 @@ export default function CarritosPage() {
                   <div className="flex flex-wrap gap-2 mt-1 text-xs">
                     <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-semibold">{TIPOS[c.tipo]}</span>
                     {c.yaCompro && <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-800 font-semibold">Ya compró</span>}
+                    {c.mailEnviado && <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-semibold">Le llegó el mail ({fecha(c.mailEnviado)})</span>}
                   </div>
                   <ul className="text-sm text-gray-700 mt-2">
                     {c.productos.map((p, i) => (

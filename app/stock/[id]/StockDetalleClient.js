@@ -8,6 +8,7 @@ import { useCart } from "@/context/CartContext";
 import { FaChevronRight, FaSpinner, FaWhatsapp, FaShareSquare } from "react-icons/fa";
 import { trackViewContent, trackAddToCart } from "@/lib/fbpixel";
 import CuotasMP from "@/components/CuotasMP";
+import EnvioInfo from "@/components/EnvioInfo";
 
 const WHATSAPP_ADMIN = "5492216220145";
 
@@ -203,6 +204,8 @@ export default function StockDetalleClient({ params }) {
           )}
 
           <CuotasMP precio={producto.precio} />
+
+          <EnvioInfo />
 
           <p className="text-gray-600 text-sm leading-relaxed">{producto.descripcion}</p>
 

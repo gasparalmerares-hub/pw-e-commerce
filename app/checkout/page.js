@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { FaChevronRight, FaCreditCard, FaWhatsapp } from "react-icons/fa";
 import { trackInitiateCheckout } from "@/lib/fbpixel";
+import { gaEvent, gaItems } from "@/lib/ga";
 import { PROVINCIAS, precioEnvioPara } from "@/lib/envio";
 import { textoPersonalizacion } from "@/lib/personalizacion";
 
@@ -143,6 +144,31 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length, costoEstampa]);
 
+  // Embudo en Google Analytics: además de begin_checkout (arriba) y purchase,
+  // avisa cuando completó todos los datos de envío (una vez) y qué forma de
+  // pago tocó. Así se ve en qué paso se va la gente.
+  const datosCompletos = !!(
+    form.nombre && form.email && form.codigoArea && form.celular &&
+    form.provincia && form.localidad && form.calle && form.numero && form.codigoPostal
+  );
+  const envioAvisado = useRef(false);
+  useEffect(() => {
+    if (!datosCompletos || envioAvisado.current || !items.length) return;
+    envioAvisado.current = true;
+    gaEvent("add_shipping_info", {
+      currency: "ARS", value: total + precioEnvio + costoEstampa,
+      shipping_tier: form.provincia, items: gaItems(items),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datosCompletos]);
+
+  function avisarPago(tipo) {
+    gaEvent("add_payment_info", {
+      currency: "ARS", value: total + precioEnvio + costoEstampa,
+      payment_type: tipo, items: gaItems(items),
+    });
+  }
+
   // Cuando el usuario vuelve con "atrás" desde MP, el bfcache restaura la
   // página con cargando=true. El evento pageshow la resetea.
   useEffect(() => {
@@ -172,19 +198,13 @@ export default function CheckoutPage() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
-  function formValido() {
-    return (
-      form.nombre && form.email && form.codigoArea && form.celular &&
-      form.provincia && form.localidad && form.calle && form.numero && form.codigoPostal
-    );
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
     if (parchesIncompletos) {
       setError("Completá el nombre o el número a estampar en cada camiseta con parche.");
       return;
     }
+    avisarPago("mercadopago");
     setCargando(true);
     setError(null);
 
@@ -228,7 +248,7 @@ export default function CheckoutPage() {
 
   async function handleTransferencia(e) {
     e.preventDefault();
-    if (!formValido()) {
+    if (!datosCompletos) {
       setError("Completá todos los campos obligatorios antes de continuar.");
       return;
     }
@@ -236,6 +256,7 @@ export default function CheckoutPage() {
       setError("Completá el nombre o el número a estampar en cada camiseta con parche.");
       return;
     }
+    avisarPago("transferencia");
     setCargandoTransf(true);
     setError(null);
 
@@ -288,6 +309,9 @@ export default function CheckoutPage() {
   }
 
   const totalConEnvio = total + precioEnvio + costoEstampa;
+  // Cuánto se ahorra pagando por transferencia (mismo cálculo que handleTransferencia)
+  const ahorroTransf = items.reduce((s, i) =>
+    s + (i.precio - Math.round(i.precio * (1 - (Number(i.descuentoTransferencia) || 0) / 100))) * i.cantidad, 0);
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
@@ -491,6 +515,13 @@ export default function CheckoutPage() {
 
           {/* Botones de pago */}
           <div className="flex flex-col gap-3">
+            {ahorroTransf > 0 && (
+              <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-center">
+                💸 Pagando por transferencia ahorrás <strong>{formatearPrecio(ahorroTransf)}</strong>: te queda en{" "}
+                <strong>{formatearPrecio(totalConEnvio - ahorroTransf)}</strong>{form.provincia ? "" : " + envío"}.
+              </p>
+            )}
+
             <button
               type="submit"
               disabled={cargando || cargandoTransf}
@@ -513,6 +544,16 @@ export default function CheckoutPage() {
             <p className="text-xs text-gray-500 text-center">
               Al pagar por transferencia te abrimos WhatsApp con los datos. Confirmamos tu pedido cuando recibamos el pago.
             </p>
+
+            <a
+              href={`https://wa.me/${WHATSAPP_ADMIN}?text=${encodeURIComponent("Hola! Tengo una duda con mi compra en la web.")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 text-sm text-green-700 font-semibold hover:underline"
+            >
+              <FaWhatsapp className="text-base" />
+              ¿Dudas? Escribinos por WhatsApp
+            </a>
           </div>
         </form>
 
@@ -559,6 +600,12 @@ export default function CheckoutPage() {
                 <span>Total</span>
                 <span className="text-orange-500">{formatearPrecio(totalConEnvio)}</span>
               </div>
+              {ahorroTransf > 0 && (
+                <div className="flex justify-between text-sm text-green-700 font-semibold">
+                  <span>Por transferencia</span>
+                  <span>{formatearPrecio(totalConEnvio - ahorroTransf)}</span>
+                </div>
+              )}
             </div>
           </div>
         </aside>
