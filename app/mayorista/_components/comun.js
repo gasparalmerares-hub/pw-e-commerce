@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { PROVINCIAS } from "@/lib/envio";
-import { PRECIO_SUGERIDO_REVENTA, CARGA_ENCARGO, PRECIO_PERSONALIZACION_USD, SENA_ENCARGO } from "@/lib/mayorista";
+import { PRECIO_SUGERIDO_REVENTA, PRECIO_PERSONALIZACION_USD, SENA_ENCARGO } from "@/lib/mayorista";
 import { puedeCompartirArchivos, compartirArchivos, descargarArchivos } from "@/lib/imagenCamiseta";
 import { FaWhatsapp, FaDollarSign, FaSpinner, FaImages, FaDownload, FaCheckCircle, FaTimes } from "react-icons/fa";
 
@@ -95,9 +95,9 @@ export function textoCondiciones(tipo) {
   const pago = tipo === "encargo"
     ? [
         "Pedido a medida: elegís del catálogo los modelos que quieras, con la personalización que quieras.",
-        `Los pedidos se consolidan hasta completar una carga de ${CARGA_ENCARGO} camisetas. La demora es de 2 meses y 15 días aproximadamente y te avisamos personalmente cuando se despacha la carga.`,
+        "La demora es de 2 meses y 15 días aproximadamente y te avisamos personalmente cuando se despacha tu pedido.",
         "Las importaciones son procesos largos y pueden sufrir demoras imprevistas.",
-        `Se abona una seña del ${SENA_ENCARGO * 100}% del total para confirmar y entrar en la carga; el saldo restante, al momento de la entrega. Sin la seña, el pedido no queda reservado.`,
+        `Se abona una seña del ${SENA_ENCARGO * 100}% del total para confirmar el pedido; el saldo restante, al momento de la entrega. Sin la seña, el pedido no queda reservado.`,
         `Personalización: USD ${PRECIO_PERSONALIZACION_USD} por nombre y USD ${PRECIO_PERSONALIZACION_USD} por número.`,
       ]
     : ["Se abona el 100% al momento de la compra. Sin el pago, el pedido no queda reservado."];
