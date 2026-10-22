@@ -13,7 +13,7 @@ import MayoristaEncargo from "./_components/MayoristaEncargo";
 const OPCIONES = [
   {
     id: "encargo", icon: FaIndustry, titulo: "Pedido a medida",
-    texto: `Elegís del catálogo, con la personalización que quieras. Mínimo ${MINIMO_MAYORISTA}. Seña del 60% y demora de 2 meses aprox.`,
+    texto: `Elegís del catálogo, con la personalización que quieras. Mínimo ${MINIMO_MAYORISTA}. Seña del 60% y demora de 2 meses y 15 días aprox.`,
   },
   {
     id: "stock", icon: FaBoxOpen, titulo: "Mayorista Stock",

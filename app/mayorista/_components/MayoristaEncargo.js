@@ -11,7 +11,7 @@ import { textoPersonalizacion } from "@/lib/personalizacion";
 import { armarImagenCamiseta } from "@/lib/imagenCamiseta";
 import { FaSpinner, FaWhatsapp } from "react-icons/fa";
 import {
-  pesos, ordenarTalles, inputClass, TablaEscalas, DolarBlue, Condiciones, BarraResumen, DatosComprador, BarraCarga,
+  pesos, ordenarTalles, inputClass, TablaEscalas, DolarBlue, Condiciones, BarraResumen, DatosComprador,
   FORM_VACIO, validarDatos, Modal, PedidoListo, pieMensaje,
 } from "./comun";
 import { Stepper } from "./MayoristaStock";
@@ -177,7 +177,6 @@ export default function MayoristaEncargo({ dolar }) {
           nota={`Personalización: +USD ${PRECIO_PERSONALIZACION_USD} por nombre y +USD ${PRECIO_PERSONALIZACION_USD} por número.`} />
         <DolarBlue dolar={dolar} usdSugerido={senaUSD} />
       </div>
-      <BarraCarga />
       <Condiciones tipo="encargo" />
 
       <h2 className="text-xl font-bold text-gray-900 mb-1">Elegí del catálogo</h2>

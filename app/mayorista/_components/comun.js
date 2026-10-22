@@ -95,7 +95,8 @@ export function textoCondiciones(tipo) {
   const pago = tipo === "encargo"
     ? [
         "Pedido a medida: elegís del catálogo los modelos que quieras, con la personalización que quieras.",
-        `Los pedidos se consolidan hasta completar una carga de ${CARGA_ENCARGO} camisetas. La demora es de 2 meses aproximadamente y te avisamos personalmente cuando se despacha la carga.`,
+        `Los pedidos se consolidan hasta completar una carga de ${CARGA_ENCARGO} camisetas. La demora es de 2 meses y 15 días aproximadamente y te avisamos personalmente cuando se despacha la carga.`,
+        "Las importaciones son procesos largos y pueden sufrir demoras imprevistas.",
         `Se abona una seña del ${SENA_ENCARGO * 100}% del total para confirmar y entrar en la carga; el saldo restante, al momento de la entrega. Sin la seña, el pedido no queda reservado.`,
         `Personalización: USD ${PRECIO_PERSONALIZACION_USD} por nombre y USD ${PRECIO_PERSONALIZACION_USD} por número.`,
       ]
@@ -259,37 +260,5 @@ export function pieMensaje(form) {
     `Localidad: ${form.localidad.trim()}, ${form.provincia}\n\n` +
     `Acepté las condiciones mayoristas.\n` +
     `Te mando las fotos de las camisetas a continuación.`
-  );
-}
-
-// ─── Avance de la carga a fábrica (pedidos a medida) ────────────────────────
-
-export function BarraCarga() {
-  const [carga, setCarga] = useState(null);   // { actual, capacidad } | { error }
-
-  useEffect(() => {
-    fetch("/api/mayorista/carga").then((r) => r.json()).then(setCarga).catch(() => setCarga({ error: true }));
-  }, []);
-
-  if (!carga || carga.error) return null;
-  const { actual, capacidad } = carga;
-  const completa = actual >= capacidad;
-  const pct = Math.min(100, Math.round((actual / capacidad) * 100));
-
-  return (
-    <section className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
-      <div className="flex items-baseline justify-between gap-3 mb-2">
-        <h2 className="font-bold text-gray-900">Carga actual a fábrica</h2>
-        <p className="text-sm text-gray-700"><strong className="text-lg text-gray-900">{Math.min(actual, capacidad)}</strong> / {capacidad} camisetas</p>
-      </div>
-      <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all duration-700 ${completa ? "bg-green-600" : "bg-orange-500"}`} style={{ width: `${pct}%` }} />
-      </div>
-      <p className="text-xs text-gray-500 mt-2">
-        {completa
-          ? "¡Carga completa! Se despacha en estos días. Los pedidos nuevos entran en la próxima carga."
-          : `Faltan ${capacidad - actual} camisetas para completar la carga. Cuando se completa, se despacha a fábrica (demora de 2 meses aprox.).`}
-      </p>
-    </section>
   );
 }

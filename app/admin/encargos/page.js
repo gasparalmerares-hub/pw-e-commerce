@@ -277,7 +277,7 @@ export default function EncargosPage() {
           )}
         </div>
         <p className="text-xs text-gray-400 mt-2">
-          Sumá tus camisetas propias (o corregí el número) con el ajuste. Lo que ves acá es lo que ven los clientes en Mayorista.
+          Sumá tus camisetas propias (o corregí el número) con el ajuste. Este contador lo ves solo vos: los clientes no lo ven.
           Cuando despachás la carga a fábrica, tocá “Vaciar carga” y el contador vuelve a 0.
         </p>
         {cargaTotal > 0 && (
