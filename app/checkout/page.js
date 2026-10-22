@@ -8,6 +8,7 @@ import { trackInitiateCheckout } from "@/lib/fbpixel";
 import { gaEvent, gaItems } from "@/lib/ga";
 import { PROVINCIAS, precioEnvioPara } from "@/lib/envio";
 import { textoPersonalizacion } from "@/lib/personalizacion";
+import PagoTarjeta, { MP_PUBLIC_KEY } from "@/components/PagoTarjeta";
 
 const WHATSAPP_ADMIN = "5492216220145";
 
@@ -61,6 +62,11 @@ export default function CheckoutPage() {
   const [cargando,         setCargando]         = useState(false);
   const [cargandoTransf,   setCargandoTransf]   = useState(false);
   const [error,            setError]            = useState(null);
+  // Pago con tarjeta dentro de la página (components/PagoTarjeta.js)
+  const [pagoTarjeta,      setPagoTarjeta]      = useState(false);
+  const [errorTarjeta,     setErrorTarjeta]     = useState(null);
+  const pedidoTarjeta = useRef(null);
+  const formRef       = useRef(null);
 
   // Carrito abandonado: apenas hay teléfono o mail, se guarda (con un par de
   // segundos de espera) para poder contactar a quien no termine la compra.
@@ -204,6 +210,59 @@ export default function CheckoutPage() {
       setError("Completá el nombre o el número a estampar en cada camiseta con parche.");
       return;
     }
+    // Con la public key de Mercado Pago, el formulario de la tarjeta aparece
+    // acá mismo; sin ella, se sigue yendo a la página de Mercado Pago.
+    if (MP_PUBLIC_KEY) {
+      avisarPago("tarjeta");
+      setError(null);
+      setPagoTarjeta(true);
+      setTimeout(() => document.getElementById("seccion-tarjeta")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+      return;
+    }
+    irAMercadoPago();
+  }
+
+  // Lo llama el formulario de la tarjeta al tocar "Pagar". Si la tarjeta se
+  // rechaza, muestra el motivo y lanza un error para que se pueda reintentar
+  // (con el mismo pedido). Si se aprueba o queda en revisión, va a la página
+  // de éxito como si volviera de Mercado Pago.
+  async function pagarConTarjeta(formData) {
+    setErrorTarjeta(null);
+    let data = {};
+    try {
+      const res = await fetch("/api/pagos/tarjeta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: itemsConPers, comprador: form, parches: parchesPayload, carritoId: carritoGuardado(),
+          pedidoId: pedidoTarjeta.current, pago: formData, deviceId: window.MP_DEVICE_SESSION_ID,
+        }),
+      });
+      data = await res.json();
+    } catch {}
+
+    if (data.pedidoId) {
+      // El pedido ya existe (el servidor borró el carrito guardado)
+      pedidoTarjeta.current = data.pedidoId;
+      pedidoCreado.current = true;
+      olvidarCarrito();
+    }
+    if (["approved", "authorized", "in_process", "pending"].includes(data.status)) {
+      try {
+        localStorage.setItem("pendingPurchase", JSON.stringify({
+          items, total: total + precioEnvio + costoEstampa, ts: Date.now(),
+        }));
+      } catch {}
+      window.location.href = `/checkout/exito?status=${data.status}&external_reference=${data.pedidoId}&payment_id=${data.paymentId}`;
+      return;
+    }
+    setErrorTarjeta(data.mensaje || data.error || "No pudimos procesar el pago. Revisá tu conexión e intentá de nuevo.");
+    document.getElementById("seccion-tarjeta")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    throw new Error(data.status || "error");
+  }
+
+  // Pago en la página de Mercado Pago (con la cuenta de Mercado Pago)
+  async function irAMercadoPago() {
     avisarPago("mercadopago");
     setCargando(true);
     setError(null);
@@ -329,183 +388,185 @@ export default function CheckoutPage() {
       <div className="flex flex-col lg:flex-row gap-8">
 
         {/* Formulario */}
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-6">
+        <div className="flex-1 flex flex-col gap-6">
+          <form id="form-checkout" ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-6">
 
-          {/* Datos personales */}
-          <section className="bg-gray-50 border border-gray-200 rounded-xl p-5 flex flex-col gap-4">
-            <h2 className="text-lg font-bold text-gray-900">Datos personales</h2>
-
-            <Campo label="Nombre y apellido *">
-              <input
-                type="text" name="nombre" value={form.nombre}
-                onChange={handleChange} required placeholder="Juan García"
-                className={inputClass}
-              />
-            </Campo>
-
-            <Campo label="Email *">
-              <input
-                type="email" name="email" value={form.email}
-                onChange={handleChange} required placeholder="juan@email.com"
-                className={inputClass}
-              />
-            </Campo>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Campo label="Cód. de área *">
-                <input
-                  type="tel" name="codigoArea" value={form.codigoArea}
-                  onChange={handleChange} required placeholder="11"
-                  className={inputClass}
-                />
-              </Campo>
-              <div className="col-span-2">
-                <Campo label="Celular *">
-                  <input
-                    type="tel" name="celular" value={form.celular}
-                    onChange={handleChange} required placeholder="1234-5678"
-                    className={inputClass}
-                  />
-                </Campo>
-              </div>
-            </div>
-          </section>
-
-          {/* Dirección */}
-          <section className="bg-gray-50 border border-gray-200 rounded-xl p-5 flex flex-col gap-4">
-            <h2 className="text-lg font-bold text-gray-900">Dirección de envío</h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Campo label="Provincia *">
-                <select
-                  name="provincia" value={form.provincia}
-                  onChange={handleChange} required
-                  className={`${inputClass} ${form.provincia ? "" : "text-gray-400"}`}
-                >
-                  <option value="" disabled>Elegí tu provincia</option>
-                  {PROVINCIAS.map((p) => (
-                    <option key={p} value={p} className="text-gray-900">{p}</option>
-                  ))}
-                </select>
-              </Campo>
-              <Campo label="Localidad *">
-                <input
-                  type="text" name="localidad" value={form.localidad}
-                  onChange={handleChange} required placeholder="Palermo"
-                  className={inputClass}
-                />
-              </Campo>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div className="col-span-2 sm:col-span-2">
-                <Campo label="Calle *">
-                  <input
-                    type="text" name="calle" value={form.calle}
-                    onChange={handleChange} required placeholder="Av. Corrientes"
-                    className={inputClass}
-                  />
-                </Campo>
-              </div>
-              <Campo label="Número *">
-                <input
-                  type="text" name="numero" value={form.numero}
-                  onChange={handleChange} required placeholder="1234"
-                  className={inputClass}
-                />
-              </Campo>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Campo label="Piso">
-                <input
-                  type="text" name="piso" value={form.piso}
-                  onChange={handleChange} placeholder="3"
-                  className={inputClass}
-                />
-              </Campo>
-              <Campo label="Departamento">
-                <input
-                  type="text" name="departamento" value={form.departamento}
-                  onChange={handleChange} placeholder="B"
-                  className={inputClass}
-                />
-              </Campo>
-              <Campo label="Código postal *">
-                <input
-                  type="text" name="codigoPostal" value={form.codigoPostal}
-                  onChange={handleChange} required placeholder="1043"
-                  className={inputClass}
-                />
-              </Campo>
-            </div>
-
-            <Campo label="Observaciones">
-              <textarea
-                name="observaciones" value={form.observaciones}
-                onChange={handleChange}
-                placeholder="Timbre roto, dejar en portería, etc."
-                rows={3}
-                className={`${inputClass} resize-none`}
-              />
-            </Campo>
-          </section>
-
-          {/* Parche estampado — uno por camiseta */}
-          {precioEstampa > 0 && elegibles.length > 0 && (
+            {/* Datos personales */}
             <section className="bg-gray-50 border border-gray-200 rounded-xl p-5 flex flex-col gap-4">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Parche estampado</h2>
-                <p className="text-sm text-gray-500">Agregá un parche estampado a las camisetas que quieras ({formatearPrecio(precioEstampa)} c/u).</p>
+              <h2 className="text-lg font-bold text-gray-900">Datos personales</h2>
+
+              <Campo label="Nombre y apellido *">
+                <input
+                  type="text" name="nombre" value={form.nombre}
+                  onChange={handleChange} required placeholder="Juan García"
+                  className={inputClass}
+                />
+              </Campo>
+
+              <Campo label="Email *">
+                <input
+                  type="email" name="email" value={form.email}
+                  onChange={handleChange} required placeholder="juan@email.com"
+                  className={inputClass}
+                />
+              </Campo>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Campo label="Cód. de área *">
+                  <input
+                    type="tel" name="codigoArea" value={form.codigoArea}
+                    onChange={handleChange} required placeholder="11"
+                    className={inputClass}
+                  />
+                </Campo>
+                <div className="col-span-2">
+                  <Campo label="Celular *">
+                    <input
+                      type="tel" name="celular" value={form.celular}
+                      onChange={handleChange} required placeholder="1234-5678"
+                      className={inputClass}
+                    />
+                  </Campo>
+                </div>
+              </div>
+            </section>
+
+            {/* Dirección */}
+            <section className="bg-gray-50 border border-gray-200 rounded-xl p-5 flex flex-col gap-4">
+              <h2 className="text-lg font-bold text-gray-900">Dirección de envío</h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Campo label="Provincia *">
+                  <select
+                    name="provincia" value={form.provincia}
+                    onChange={handleChange} required
+                    className={`${inputClass} ${form.provincia ? "" : "text-gray-400"}`}
+                  >
+                    <option value="" disabled>Elegí tu provincia</option>
+                    {PROVINCIAS.map((p) => (
+                      <option key={p} value={p} className="text-gray-900">{p}</option>
+                    ))}
+                  </select>
+                </Campo>
+                <Campo label="Localidad *">
+                  <input
+                    type="text" name="localidad" value={form.localidad}
+                    onChange={handleChange} required placeholder="Palermo"
+                    className={inputClass}
+                  />
+                </Campo>
               </div>
 
-              {unidades.map(({ it, u, k }) => {
-                const p = parches[k] ?? { activo: false, nombre: "", numero: "" };
-                const cantidad = Number(it.cantidad) || 1;
-                return (
-                  <div key={k} className="border border-gray-200 rounded-lg p-3 bg-white flex flex-col gap-3">
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={p.activo}
-                        onChange={(e) => setParches((prev) => ({ ...prev, [k]: { ...p, activo: e.target.checked } }))}
-                        className="mt-1 w-5 h-5 accent-orange-500 shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <p className="font-semibold text-gray-900 text-sm">
-                          {it.nombre} <span className="text-gray-500 font-normal">· Talle {it.talle}</span>
-                          {cantidad > 1 && <span className="text-gray-500 font-normal"> · camiseta {u + 1} de {cantidad}</span>}
-                        </p>
-                        <p className="text-xs text-orange-500 font-semibold">+{formatearPrecio(precioEstampa)}</p>
-                      </div>
-                    </label>
-                    {p.activo && (
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="col-span-2">
-                          <Campo label="Nombre">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="col-span-2 sm:col-span-2">
+                  <Campo label="Calle *">
+                    <input
+                      type="text" name="calle" value={form.calle}
+                      onChange={handleChange} required placeholder="Av. Corrientes"
+                      className={inputClass}
+                    />
+                  </Campo>
+                </div>
+                <Campo label="Número *">
+                  <input
+                    type="text" name="numero" value={form.numero}
+                    onChange={handleChange} required placeholder="1234"
+                    className={inputClass}
+                  />
+                </Campo>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Campo label="Piso">
+                  <input
+                    type="text" name="piso" value={form.piso}
+                    onChange={handleChange} placeholder="3"
+                    className={inputClass}
+                  />
+                </Campo>
+                <Campo label="Departamento">
+                  <input
+                    type="text" name="departamento" value={form.departamento}
+                    onChange={handleChange} placeholder="B"
+                    className={inputClass}
+                  />
+                </Campo>
+                <Campo label="Código postal *">
+                  <input
+                    type="text" name="codigoPostal" value={form.codigoPostal}
+                    onChange={handleChange} required placeholder="1043"
+                    className={inputClass}
+                  />
+                </Campo>
+              </div>
+
+              <Campo label="Observaciones">
+                <textarea
+                  name="observaciones" value={form.observaciones}
+                  onChange={handleChange}
+                  placeholder="Timbre roto, dejar en portería, etc."
+                  rows={3}
+                  className={`${inputClass} resize-none`}
+                />
+              </Campo>
+            </section>
+
+            {/* Parche estampado — uno por camiseta */}
+            {precioEstampa > 0 && elegibles.length > 0 && (
+              <section className="bg-gray-50 border border-gray-200 rounded-xl p-5 flex flex-col gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Parche estampado</h2>
+                  <p className="text-sm text-gray-500">Agregá un parche estampado a las camisetas que quieras ({formatearPrecio(precioEstampa)} c/u).</p>
+                </div>
+
+                {unidades.map(({ it, u, k }) => {
+                  const p = parches[k] ?? { activo: false, nombre: "", numero: "" };
+                  const cantidad = Number(it.cantidad) || 1;
+                  return (
+                    <div key={k} className="border border-gray-200 rounded-lg p-3 bg-white flex flex-col gap-3">
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={p.activo}
+                          onChange={(e) => setParches((prev) => ({ ...prev, [k]: { ...p, activo: e.target.checked } }))}
+                          className="mt-1 w-5 h-5 accent-orange-500 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-900 text-sm">
+                            {it.nombre} <span className="text-gray-500 font-normal">· Talle {it.talle}</span>
+                            {cantidad > 1 && <span className="text-gray-500 font-normal"> · camiseta {u + 1} de {cantidad}</span>}
+                          </p>
+                          <p className="text-xs text-orange-500 font-semibold">+{formatearPrecio(precioEstampa)}</p>
+                        </div>
+                      </label>
+                      {p.activo && (
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="col-span-2">
+                            <Campo label="Nombre">
+                              <input
+                                type="text" value={p.nombre ?? ""} maxLength={20}
+                                onChange={(e) => setParches((prev) => ({ ...prev, [k]: { ...p, nombre: e.target.value } }))}
+                                placeholder="GARCÍA"
+                                className={inputClass}
+                              />
+                            </Campo>
+                          </div>
+                          <Campo label="Número">
                             <input
-                              type="text" value={p.nombre ?? ""} maxLength={20}
-                              onChange={(e) => setParches((prev) => ({ ...prev, [k]: { ...p, nombre: e.target.value } }))}
-                              placeholder="GARCÍA"
+                              type="text" inputMode="numeric" value={p.numero ?? ""} maxLength={3}
+                              onChange={(e) => setParches((prev) => ({ ...prev, [k]: { ...p, numero: e.target.value.replace(/\D/g, "") } }))}
+                              placeholder="10"
                               className={inputClass}
                             />
                           </Campo>
                         </div>
-                        <Campo label="Número">
-                          <input
-                            type="text" inputMode="numeric" value={p.numero ?? ""} maxLength={3}
-                            onChange={(e) => setParches((prev) => ({ ...prev, [k]: { ...p, numero: e.target.value.replace(/\D/g, "") } }))}
-                            placeholder="10"
-                            className={inputClass}
-                          />
-                        </Campo>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </section>
-          )}
+                      )}
+                    </div>
+                  );
+                })}
+              </section>
+            )}
+          </form>
 
           {error && (
             <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-4 py-3">
@@ -522,14 +583,33 @@ export default function CheckoutPage() {
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={cargando || cargandoTransf}
-              className="w-full flex items-center justify-center gap-2 bg-orange-500 text-black font-bold py-4 rounded-xl text-lg hover:bg-orange-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-            >
-              <FaCreditCard className="text-base" />
-              {cargando ? "Procesando..." : "Tarjeta o Mercado Pago"}
-            </button>
+            {!pagoTarjeta ? (
+              <button
+                type="submit"
+                form="form-checkout"
+                disabled={cargando || cargandoTransf}
+                className="w-full flex items-center justify-center gap-2 bg-orange-500 text-black font-bold py-4 rounded-xl text-lg hover:bg-orange-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+              >
+                <FaCreditCard className="text-base" />
+                {cargando ? "Procesando..." : MP_PUBLIC_KEY ? "Pagar con tarjeta" : "Tarjeta o Mercado Pago"}
+              </button>
+            ) : (
+              <section id="seccion-tarjeta" className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col gap-3 scroll-mt-24">
+                <h2 className="text-lg font-bold text-gray-900">Pagá con tu tarjeta de débito o crédito</h2>
+                {errorTarjeta && (
+                  <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-4 py-3">{errorTarjeta}</p>
+                )}
+                <PagoTarjeta monto={totalConEnvio} email={form.email} onPagar={pagarConTarjeta} />
+                <button
+                  type="button"
+                  onClick={() => { if (formRef.current?.reportValidity()) irAMercadoPago(); }}
+                  disabled={cargando || cargandoTransf}
+                  className="text-sm text-gray-500 underline hover:text-gray-800 disabled:opacity-50"
+                >
+                  {cargando ? "Abriendo Mercado Pago..." : "Prefiero pagar con mi cuenta de Mercado Pago"}
+                </button>
+              </section>
+            )}
 
             <button
               type="button"
@@ -555,7 +635,7 @@ export default function CheckoutPage() {
               ¿Dudas? Escribinos por WhatsApp
             </a>
           </div>
-        </form>
+        </div>
 
         {/* Resumen del pedido */}
         <aside className="lg:w-80 shrink-0 order-first lg:order-last">

@@ -15,8 +15,12 @@ function formatearPrecio(precio) {
 export default function CheckoutExitoPage() {
   const { vaciarCarrito } = useCart();
   const [waUrl, setWaUrl] = useState(null);
+  // Pago con tarjeta que Mercado Pago dejó "en revisión": todavía no está aprobado
+  const [enRevision, setEnRevision] = useState(false);
 
   useEffect(() => {
+    const estado = new URLSearchParams(window.location.search);
+    if (["in_process", "pending"].includes(estado.get("collection_status") ?? estado.get("status"))) setEnRevision(true);
     try {
       const raw = localStorage.getItem("pendingPurchase");
       if (raw) {
@@ -50,8 +54,10 @@ export default function CheckoutExitoPage() {
   return (
     <main className="max-w-xl mx-auto px-4 py-20 text-center">
       <FaCheckCircle className="text-green-500 text-6xl mx-auto mb-6" />
-      <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-3">¡Pago exitoso!</h1>
-      <p className="text-gray-500 mb-2">Tu compra fue procesada correctamente.</p>
+      <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-3">{enRevision ? "¡Recibimos tu pedido!" : "¡Pago exitoso!"}</h1>
+      <p className="text-gray-500 mb-2">
+        {enRevision ? "Mercado Pago está revisando el pago. Cuando se apruebe te llega un mail de confirmación." : "Tu compra fue procesada correctamente."}
+      </p>
       <p className="text-gray-500 mb-10">
         Nos ponemos en contacto a la brevedad para coordinar el envío.
       </p>

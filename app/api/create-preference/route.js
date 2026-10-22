@@ -1,39 +1,13 @@
 import MercadoPago, { Preference } from "mercadopago";
-import { supabaseAdmin } from "@/lib/supabase";
 import { unstable_noStore as noStore } from "next/cache";
-import { precioEnvioPara } from "@/lib/envio";
 import { MAX_CUOTAS } from "@/lib/cuotas";
-import { atribucionDesdeRequest, conAtribucion } from "@/lib/metaAtribucion";
-import { borrarCarrito } from "@/lib/carritosServidor";
+import { calcularTotales, crearPedidoPendiente, itemsParaMP, urlBase } from "@/lib/pedidoTienda";
 
 export const dynamic = "force-dynamic";
 
-async function getPrecioEnvio(provincia) {
-  try {
-    const { data } = await supabaseAdmin()
-      .from("configuracion")
-      .select("clave, valor")
-      .in("clave", ["precio_envio", "precio_envio_provincias"]);
-    const config = Object.fromEntries((data ?? []).map(({ clave, valor }) => [clave, valor]));
-    return precioEnvioPara(config, provincia);
-  } catch {
-    return 0;
-  }
-}
-
-async function getPrecioConfig(clave) {
-  try {
-    const { data } = await supabaseAdmin()
-      .from("configuracion")
-      .select("valor")
-      .eq("clave", clave)
-      .single();
-    return data ? parseInt(data.valor) || 0 : 0;
-  } catch {
-    return 0;
-  }
-}
-
+// Pago en la página de Mercado Pago (Checkout Pro). Desde que el checkout
+// tiene el formulario de la tarjeta adentro (/api/pagos/tarjeta), esto queda
+// para "Pagar con mi cuenta de Mercado Pago" y por si falta la public key.
 export async function POST(request) {
   noStore();
   if (!process.env.MP_ACCESS_TOKEN) {
@@ -45,87 +19,18 @@ export async function POST(request) {
 
   try {
     const { items, comprador, parches, carritoId } = await request.json();
-    const parchesArr = Array.isArray(parches) ? parches : [];
-
-    // MercadoPago NO sigue redirects en el webhook: si el notification_url
-    // apunta a un dominio que redirige (www ↔ sin www, según cómo esté
-    // configurado el dominio en Vercel), el pago nunca se registra.
-    // Usamos el host por el que entró esta request, que es justamente el que
-    // responde 200. NEXT_PUBLIC_URL queda solo como respaldo (desarrollo local).
-    const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "";
-    const baseUrl = host && !host.startsWith("localhost")
-      ? `https://${host}`
-      : (process.env.NEXT_PUBLIC_URL ?? "").replace(/\/$/, "");
-
-    const precioEnvio = await getPrecioEnvio(comprador?.provincia);
-    const precioEstampaUnit = parchesArr.length ? await getPrecioConfig("precio_estampa") : 0;
-    const costoEstampa = parchesArr.length * precioEstampaUnit;
-    const total = items.reduce((sum, i) => sum + Number(i.precio) * Number(i.cantidad), 0) + precioEnvio + costoEstampa;
-    const parchesTxt = parchesArr.map((p) => `${p.nombre} T.${p.talle}: ${p.detalle}`).join(" | ");
+    const baseUrl = urlBase(request);
+    const totales = await calcularTotales(items, comprador, parches);
 
     // Guardar pedido en Supabase antes de redirigir a MP
-    let pedidoId = null;
-    try {
-      const { data } = await supabaseAdmin()
-        .from("pedidos")
-        .insert({
-          nombre:        comprador.nombre,
-          email:         comprador.email,
-          telefono:      `${comprador.codigoArea ?? ""}${comprador.celular ?? ""}`,
-          provincia:     comprador.provincia ?? "",
-          localidad:     comprador.localidad ?? "",
-          calle:         comprador.calle ?? "",
-          numero:        comprador.numero ?? "",
-          piso:          comprador.piso ?? "",
-          departamento:  comprador.departamento ?? "",
-          codigo_postal: comprador.codigoPostal ?? "",
-          // Al final van los datos para que Meta atribuya la compra (ver lib/metaAtribucion.js)
-          observaciones: conAtribucion(
-            `${parchesArr.length ? `[PARCHES ESTAMPADOS → ${parchesTxt}] ` : ""}${comprador.observaciones ?? ""}`.trim(),
-            atribucionDesdeRequest(request)
-          ),
-          items,
-          total,
-          estado: "pendiente",
-        })
-        .select("id")
-        .single();
-      pedidoId = data?.id ?? null;
-      // El carrito abandonado guardado mientras completaba los datos ya no hace falta
-      if (pedidoId) await borrarCarrito(carritoId);
-    } catch (e) {
-      console.error("Error saving pedido (no bloqueante):", e);
-    }
+    const pedidoId = await crearPedidoPendiente(request, { items, comprador, carritoId, totales });
 
     const client = new MercadoPago({ accessToken: process.env.MP_ACCESS_TOKEN });
     const preference = new Preference(client);
 
     const result = await preference.create({
       body: {
-        items: [
-          ...items.map((item) => ({
-            id: String(item.id),
-            title: `${item.nombre} - Talle ${item.talle}`,
-            quantity: Number(item.cantidad),
-            unit_price: Number(item.precio),
-            currency_id: "ARS",
-            ...(item.imagen ? { picture_url: item.imagen } : {}),
-          })),
-          {
-            id: "envio",
-            title: "Envío",
-            quantity: 1,
-            unit_price: Number(precioEnvio),
-            currency_id: "ARS",
-          },
-          ...(parchesArr.length > 0 ? [{
-            id: "estampa",
-            title: `Parche estampado (x${parchesArr.length})`,
-            quantity: parchesArr.length,
-            unit_price: Number(precioEstampaUnit),
-            currency_id: "ARS",
-          }] : []),
-        ],
+        items: itemsParaMP(items, totales),
         payer: {
           name: comprador.nombre,
           email: comprador.email,
