@@ -736,9 +736,9 @@ export default function CheckoutPage() {
                 <span>{formatearPrecio(total)}</span>
               </div>
               {codigo && total > subtotalProductos && (
-                <div className="flex justify-between text-sm text-green-700">
-                  <span>Descuento {codigo.codigo} (−{codigo.porcentaje}%)</span>
-                  <span>−{formatearPrecio(total - subtotalProductos)}</span>
+                <div className="flex justify-between gap-2 text-sm text-green-700">
+                  <span>Descuento −{codigo.porcentaje}%</span>
+                  <span className="whitespace-nowrap">−{formatearPrecio(total - subtotalProductos)}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm text-gray-500">
