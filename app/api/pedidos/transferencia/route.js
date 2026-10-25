@@ -16,7 +16,7 @@ export async function POST(request) {
 
     // Código de descuento: se valida acá y se SUMA al descuento por
     // transferencia (se aplica sobre el precio con transferencia, lib/codigos.js)
-    const { codigo, error: errorCodigo } = await codigoDelPedido(codigoTexto);
+    const { codigo, error: errorCodigo } = await codigoDelPedido(codigoTexto, comprador?.email);
     if (errorCodigo) return Response.json({ error: errorCodigo, codigoInvalido: true }, { status: 400 });
     const items = codigo
       ? itemsRecibidos.map((i) => {

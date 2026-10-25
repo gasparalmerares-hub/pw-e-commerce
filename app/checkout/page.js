@@ -398,7 +398,7 @@ export default function CheckoutPage() {
       const res = await fetch("/api/codigos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ codigo: texto }),
+        body: JSON.stringify({ codigo: texto, email: form.email }),
       });
       const d = await res.json();
       if (d.codigo) { setCodigo({ codigo: d.codigo, porcentaje: d.porcentaje }); setCodigoTexto(""); }

@@ -20,7 +20,7 @@ export async function POST(request) {
 
   try {
     const { items, comprador, parches, carritoId, codigo: codigoTexto } = await request.json();
-    const { codigo, error: errorCodigo } = await codigoDelPedido(codigoTexto);
+    const { codigo, error: errorCodigo } = await codigoDelPedido(codigoTexto, comprador?.email);
     if (errorCodigo) return Response.json({ error: errorCodigo, codigoInvalido: true }, { status: 400 });
     const baseUrl = urlBase(request);
     const totales = await calcularTotales(items, comprador, parches, codigo);

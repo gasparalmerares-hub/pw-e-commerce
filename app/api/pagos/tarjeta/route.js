@@ -45,7 +45,7 @@ export async function POST(request) {
     if (!Array.isArray(items) || !items.length || !comprador?.email || !pago?.token || !pago?.payment_method_id) {
       return Response.json({ error: "Faltan datos del pago." }, { status: 400 });
     }
-    const { codigo, error: errorCodigo } = await codigoDelPedido(codigoTexto);
+    const { codigo, error: errorCodigo } = await codigoDelPedido(codigoTexto, comprador?.email);
     if (errorCodigo) return Response.json({ error: errorCodigo, codigoInvalido: true }, { status: 400 });
 
     const baseUrl = urlBase(request);

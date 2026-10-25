@@ -12,7 +12,7 @@ import { normalizarCodigo } from "@/lib/codigos";
 const inputClass =
   "bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:border-orange-500 transition-colors w-full";
 
-const NUEVO = { codigo: "", porcentaje: "", vence: "", maxUsos: "" };
+const NUEVO = { codigo: "", porcentaje: "", vence: "", maxUsos: "", soloClientes: false };
 
 function fecha(iso) {
   const [a, m, d] = String(iso).split("-");
@@ -76,8 +76,10 @@ export default function CodigosDescuento() {
     if (ok) setNuevo(NUEVO);
   }
 
-  function prenderApagar(c) {
-    enviar({ accion: "guardar", codigo: c.codigo, porcentaje: c.porcentaje, vence: c.vence, maxUsos: c.maxUsos, activo: !c.activo }, c.codigo);
+  // Cambia una opción del código conservando las demás
+  function cambiar(c, cambios) {
+    const { codigo, porcentaje, vence, maxUsos, activo, soloClientes } = c;
+    enviar({ accion: "guardar", codigo, porcentaje, vence, maxUsos, activo, soloClientes: !!soloClientes, ...cambios }, c.codigo);
   }
 
   function borrar(c) {
@@ -127,6 +129,17 @@ export default function CodigosDescuento() {
             className={inputClass}
           />
         </label>
+        <label className="col-span-2 sm:col-span-4 flex items-start gap-2 cursor-pointer">
+          <input
+            type="checkbox" checked={nuevo.soloClientes}
+            onChange={(e) => setNuevo({ ...nuevo, soloClientes: e.target.checked })}
+            className="mt-0.5 w-5 h-5 accent-orange-500 shrink-0"
+          />
+          <span className="text-sm text-gray-700">
+            Solo para clientes que ya compraron
+            <span className="block text-xs text-gray-500">La persona tiene que usar el mismo email de una compra anterior ya pagada.</span>
+          </span>
+        </label>
         <button
           type="submit" disabled={guardando === "nuevo"}
           className="col-span-2 sm:col-span-4 flex items-center justify-center gap-2 bg-orange-500 text-black font-bold py-2.5 rounded-xl hover:bg-orange-400 transition-colors disabled:opacity-50"
@@ -152,6 +165,9 @@ export default function CodigosDescuento() {
                   <p className="font-bold text-gray-900">
                     {c.codigo} <span className="text-orange-500">−{c.porcentaje}%</span>
                     <span className={`ml-2 align-middle px-2 py-0.5 rounded-full text-xs font-semibold ${e.clase}`}>{e.texto}</span>
+                    {c.soloClientes && (
+                      <span className="ml-1 align-middle px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">Solo clientes</span>
+                    )}
                   </p>
                   <p className="text-xs text-gray-500 mt-0.5">
                     Usado {c.usos} {c.usos === 1 ? "vez" : "veces"}{c.maxUsos ? ` de ${c.maxUsos}` : ""}
@@ -160,8 +176,15 @@ export default function CodigosDescuento() {
                 </div>
                 <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                   <input
+                    type="checkbox" checked={!!c.soloClientes} disabled={guardando === c.codigo}
+                    onChange={() => cambiar(c, { soloClientes: !c.soloClientes })} className="w-5 h-5 accent-orange-500"
+                  />
+                  Solo clientes
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
                     type="checkbox" checked={!!c.activo} disabled={guardando === c.codigo}
-                    onChange={() => prenderApagar(c)} className="w-5 h-5 accent-orange-500"
+                    onChange={() => cambiar(c, { activo: !c.activo })} className="w-5 h-5 accent-orange-500"
                   />
                   Activo
                 </label>

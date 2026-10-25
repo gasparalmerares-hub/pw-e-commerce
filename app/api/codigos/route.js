@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 export async function POST(request) {
   noStore();
   try {
-    const { codigo } = await request.json();
-    const r = await validarCodigo(codigo);
+    const { codigo, email } = await request.json();
+    const r = await validarCodigo(codigo, email);
     return Response.json(r, { status: r.error ? 400 : 200, headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     console.error("[codigos] Error:", err?.message);

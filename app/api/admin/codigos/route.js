@@ -22,7 +22,7 @@ export async function GET() {
   }
 }
 
-// { accion: "guardar", codigo, porcentaje, activo, vence, maxUsos } o { accion: "borrar", codigo }
+// { accion: "guardar", codigo, porcentaje, activo, vence, maxUsos, soloClientes } o { accion: "borrar", codigo }
 export async function POST(request) {
   noStore();
   try {
@@ -48,6 +48,7 @@ export async function POST(request) {
         activo:  b.activo !== false,
         vence,
         maxUsos,
+        soloClientes: b.soloClientes === true,
         creado:  codigos[codigo]?.creado ?? new Date().toISOString(),
       };
     }
