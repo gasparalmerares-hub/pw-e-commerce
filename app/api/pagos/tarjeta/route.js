@@ -4,6 +4,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
 import { esUUID } from "@/lib/carritosServidor";
 import { calcularTotales, crearPedidoPendiente, itemsParaMP, urlBase } from "@/lib/pedidoTienda";
+import { codigoDelPedido } from "@/lib/codigosServidor";
 
 export const dynamic = "force-dynamic";
 
@@ -40,13 +41,15 @@ export async function POST(request) {
 
   let pedidoId = null;
   try {
-    const { items, comprador, parches, carritoId, pedidoId: pedidoAnterior, pago, deviceId } = await request.json();
+    const { items, comprador, parches, carritoId, pedidoId: pedidoAnterior, pago, deviceId, codigo: codigoTexto } = await request.json();
     if (!Array.isArray(items) || !items.length || !comprador?.email || !pago?.token || !pago?.payment_method_id) {
       return Response.json({ error: "Faltan datos del pago." }, { status: 400 });
     }
+    const { codigo, error: errorCodigo } = await codigoDelPedido(codigoTexto);
+    if (errorCodigo) return Response.json({ error: errorCodigo, codigoInvalido: true }, { status: 400 });
 
     const baseUrl = urlBase(request);
-    const totales = await calcularTotales(items, comprador, parches);
+    const totales = await calcularTotales(items, comprador, parches, codigo);
 
     // Si la tarjeta anterior fue rechazada se reusa el mismo pedido (mientras
     // siga pendiente y por el mismo total); si no, se crea uno nuevo.

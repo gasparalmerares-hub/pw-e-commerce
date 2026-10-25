@@ -2,6 +2,7 @@ import MercadoPago, { Preference } from "mercadopago";
 import { unstable_noStore as noStore } from "next/cache";
 import { MAX_CUOTAS } from "@/lib/cuotas";
 import { calcularTotales, crearPedidoPendiente, itemsParaMP, urlBase } from "@/lib/pedidoTienda";
+import { codigoDelPedido } from "@/lib/codigosServidor";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +19,11 @@ export async function POST(request) {
   }
 
   try {
-    const { items, comprador, parches, carritoId } = await request.json();
+    const { items, comprador, parches, carritoId, codigo: codigoTexto } = await request.json();
+    const { codigo, error: errorCodigo } = await codigoDelPedido(codigoTexto);
+    if (errorCodigo) return Response.json({ error: errorCodigo, codigoInvalido: true }, { status: 400 });
     const baseUrl = urlBase(request);
-    const totales = await calcularTotales(items, comprador, parches);
+    const totales = await calcularTotales(items, comprador, parches, codigo);
 
     // Guardar pedido en Supabase antes de redirigir a MP
     const pedidoId = await crearPedidoPendiente(request, { items, comprador, carritoId, totales });

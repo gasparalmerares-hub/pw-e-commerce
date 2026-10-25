@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { FaSpinner, FaSave } from "react-icons/fa";
 import { PROVINCIAS, parsePreciosProvincias } from "@/lib/envio";
+import CodigosDescuento from "../_components/CodigosDescuento";
 
 // Normaliza { provincia: "12000" } → string JSON estable, sin provincias vacías
 function serializarProvincias(obj) {
@@ -226,6 +227,8 @@ export default function ConfiguracionPage() {
           </button>
         </form>
       )}
+
+      {!cargando && <CodigosDescuento />}
     </div>
   );
 }

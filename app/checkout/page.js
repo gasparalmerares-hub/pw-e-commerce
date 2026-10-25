@@ -9,6 +9,7 @@ import { gaEvent, gaItems } from "@/lib/ga";
 import { PROVINCIAS, precioEnvioPara } from "@/lib/envio";
 import { textoPersonalizacion } from "@/lib/personalizacion";
 import PagoTarjeta, { MP_PUBLIC_KEY } from "@/components/PagoTarjeta";
+import { conCodigo, normalizarCodigo } from "@/lib/codigos";
 
 const WHATSAPP_ADMIN = "5492216220145";
 
@@ -65,6 +66,11 @@ export default function CheckoutPage() {
   // Pago con tarjeta dentro de la página (components/PagoTarjeta.js)
   const [pagoTarjeta,      setPagoTarjeta]      = useState(false);
   const [errorTarjeta,     setErrorTarjeta]     = useState(null);
+  // Código de descuento aplicado: { codigo, porcentaje } (ver lib/codigos.js)
+  const [codigo,           setCodigo]           = useState(null);
+  const [codigoTexto,      setCodigoTexto]      = useState("");
+  const [codigoError,      setCodigoError]      = useState(null);
+  const [aplicandoCodigo,  setAplicandoCodigo]  = useState(false);
   const pedidoTarjeta = useRef(null);
   const formRef       = useRef(null);
 
@@ -115,6 +121,10 @@ export default function CheckoutPage() {
   );
   const conParche    = unidades.filter(({ k }) => parches[k]?.activo);
   const costoEstampa = conParche.length * precioEstampa;
+
+  // Con código de descuento cada camiseta baja ese porcentaje (envío y parches no)
+  const pct = codigo?.porcentaje ?? 0;
+  const subtotalProductos = items.reduce((s, i) => s + conCodigo(i.precio, pct) * i.cantidad, 0);
 
   // Nombre y número a estampar de una unidad (vacíos si no hay)
   const persDe = (k) => ({
@@ -236,6 +246,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           items: itemsConPers, comprador: form, parches: parchesPayload, carritoId: carritoGuardado(),
           pedidoId: pedidoTarjeta.current, pago: formData, deviceId: window.MP_DEVICE_SESSION_ID,
+          codigo: codigo?.codigo,
         }),
       });
       data = await res.json();
@@ -250,12 +261,13 @@ export default function CheckoutPage() {
     if (["approved", "authorized", "in_process", "pending"].includes(data.status)) {
       try {
         localStorage.setItem("pendingPurchase", JSON.stringify({
-          items, total: total + precioEnvio + costoEstampa, ts: Date.now(),
+          items, total: subtotalProductos + precioEnvio + costoEstampa, ts: Date.now(),
         }));
       } catch {}
       window.location.href = `/checkout/exito?status=${data.status}&external_reference=${data.pedidoId}&payment_id=${data.paymentId}`;
       return;
     }
+    if (data.codigoInvalido) quitarCodigo(data.error);
     setErrorTarjeta(data.mensaje || data.error || "No pudimos procesar el pago. Revisá tu conexión e intentá de nuevo.");
     document.getElementById("seccion-tarjeta")?.scrollIntoView({ behavior: "smooth", block: "start" });
     throw new Error(data.status || "error");
@@ -271,11 +283,12 @@ export default function CheckoutPage() {
       const res = await fetch("/api/create-preference", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: itemsConPers, comprador: form, parches: parchesPayload, carritoId: carritoGuardado() }),
+        body: JSON.stringify({ items: itemsConPers, comprador: form, parches: parchesPayload, carritoId: carritoGuardado(), codigo: codigo?.codigo }),
       });
 
       const data = await res.json();
 
+      if (data.codigoInvalido) quitarCodigo(data.error);
       if (!res.ok) throw new Error(data.error || "Error al procesar el pago");
       pedidoCreado.current = true;
       olvidarCarrito();
@@ -283,7 +296,7 @@ export default function CheckoutPage() {
       // Guardar resumen para disparar Purchase en /checkout/exito al volver de MP
       try {
         localStorage.setItem("pendingPurchase", JSON.stringify({
-          items, total: total + precioEnvio + costoEstampa, ts: Date.now(),
+          items, total: subtotalProductos + precioEnvio + costoEstampa, ts: Date.now(),
         }));
       } catch {}
 
@@ -326,23 +339,25 @@ export default function CheckoutPage() {
         const precioTransf = Math.round(i.precio * (1 - desc / 100));
         return { ...i, precioTransf, descuentoTransferencia: desc };
       });
-      const subtotalTransf = itemsTransf.reduce((s, i) => s + i.precioTransf * i.cantidad, 0);
+      // El código se suma al descuento por transferencia (el servidor lo vuelve a calcular)
+      const subtotalTransf = itemsTransf.reduce((s, i) => s + conCodigo(i.precioTransf, pct) * i.cantidad, 0);
       const totalFinal     = subtotalTransf + precioEnvio + costoEstampa;
 
       const res = await fetch("/api/pedidos/transferencia", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: itemsTransf, comprador: form, parches: parchesPayload, carritoId: carritoGuardado() }),
+        body: JSON.stringify({ items: itemsTransf, comprador: form, parches: parchesPayload, carritoId: carritoGuardado(), codigo: codigo?.codigo }),
       });
 
       const data = await res.json();
 
+      if (data.codigoInvalido) quitarCodigo(data.error);
       if (!res.ok) throw new Error(data.error || "Error al registrar el pedido");
       pedidoCreado.current = true;
       olvidarCarrito();
 
       const resumen = itemsTransf
-        .map((i) => `• ${i.nombre} T.${i.talle} x${i.cantidad} = ${formatearPrecio(i.precioTransf * i.cantidad)}${i.descuentoTransferencia > 0 ? ` _(−${i.descuentoTransferencia}% transf.)_` : ""}`)
+        .map((i) => `• ${i.nombre} T.${i.talle} x${i.cantidad} = ${formatearPrecio(conCodigo(i.precioTransf, pct) * i.cantidad)}${i.descuentoTransferencia > 0 ? ` _(−${i.descuentoTransferencia}% transf.)_` : ""}`)
         .join("\n");
       const parchesTxt = parchesPayload
         .map((p) => `Parche en ${p.nombre} T.${p.talle}: ${p.detalle} (+${formatearPrecio(precioEstampa)})`)
@@ -351,6 +366,7 @@ export default function CheckoutPage() {
         `Hola! Quiero pagar por transferencia.\n\n` +
         `*Pedido #${data.id}*\n${resumen}\n` +
         (parchesPayload.length ? `\n*Parches estampados:*\n${parchesTxt}\n` : "") +
+        (codigo ? `\nCódigo de descuento: *${codigo.codigo}* (−${codigo.porcentaje}%)\n` : "") +
         `\nEnvío: ${formatearPrecio(precioEnvio)}\n` +
         `*Total: ${formatearPrecio(totalFinal)}*\n\n` +
         `Nombre: ${form.nombre}\n` +
@@ -367,10 +383,36 @@ export default function CheckoutPage() {
     }
   }
 
-  const totalConEnvio = total + precioEnvio + costoEstampa;
+  const totalConEnvio = subtotalProductos + precioEnvio + costoEstampa;
   // Cuánto se ahorra pagando por transferencia (mismo cálculo que handleTransferencia)
-  const ahorroTransf = items.reduce((s, i) =>
-    s + (i.precio - Math.round(i.precio * (1 - (Number(i.descuentoTransferencia) || 0) / 100))) * i.cantidad, 0);
+  const ahorroTransf = subtotalProductos - items.reduce((s, i) =>
+    s + conCodigo(Math.round(i.precio * (1 - (Number(i.descuentoTransferencia) || 0) / 100)), pct) * i.cantidad, 0);
+
+  async function aplicarCodigo(e) {
+    e.preventDefault();
+    const texto = normalizarCodigo(codigoTexto);
+    if (!texto) return;
+    setAplicandoCodigo(true);
+    setCodigoError(null);
+    try {
+      const res = await fetch("/api/codigos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codigo: texto }),
+      });
+      const d = await res.json();
+      if (d.codigo) { setCodigo({ codigo: d.codigo, porcentaje: d.porcentaje }); setCodigoTexto(""); }
+      else setCodigoError(d.error || "Ese código no es válido.");
+    } catch {
+      setCodigoError("No se pudo revisar el código. Probá de nuevo.");
+    }
+    setAplicandoCodigo(false);
+  }
+
+  function quitarCodigo(motivo = null) {
+    setCodigo(null);
+    setCodigoError(motivo);
+  }
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
@@ -661,11 +703,44 @@ export default function CheckoutPage() {
               ))}
             </div>
 
+            {/* Código de descuento */}
+            <div className="border-t border-gray-200 pt-3 mb-3">
+              {codigo ? (
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="text-green-700 font-semibold">Código {codigo.codigo} aplicado (−{codigo.porcentaje}%)</span>
+                  <button type="button" onClick={() => quitarCodigo()} className="text-xs text-gray-500 underline hover:text-gray-800">
+                    Quitar
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={aplicarCodigo} className="flex gap-2">
+                  <input
+                    type="text" value={codigoTexto} onChange={(e) => setCodigoTexto(e.target.value)}
+                    placeholder="Código de descuento" aria-label="Código de descuento"
+                    className={`${inputClass} flex-1 min-w-0 uppercase text-sm`}
+                  />
+                  <button
+                    type="submit" disabled={aplicandoCodigo || !codigoTexto.trim()}
+                    className="shrink-0 px-4 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 disabled:opacity-50"
+                  >
+                    {aplicandoCodigo ? "..." : "Aplicar"}
+                  </button>
+                </form>
+              )}
+              {codigoError && <p className="text-xs text-red-600 mt-1">{codigoError}</p>}
+            </div>
+
             <div className="border-t border-gray-200 pt-3 flex flex-col gap-2">
               <div className="flex justify-between text-sm text-gray-500">
                 <span>Subtotal</span>
                 <span>{formatearPrecio(total)}</span>
               </div>
+              {codigo && total > subtotalProductos && (
+                <div className="flex justify-between text-sm text-green-700">
+                  <span>Descuento {codigo.codigo} (−{codigo.porcentaje}%)</span>
+                  <span>−{formatearPrecio(total - subtotalProductos)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm text-gray-500">
                 <span>Envío</span>
                 <span>{!form.provincia ? "Elegí tu provincia" : precioEnvio > 0 ? formatearPrecio(precioEnvio) : "—"}</span>

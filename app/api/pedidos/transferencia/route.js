@@ -3,14 +3,27 @@ import { unstable_noStore as noStore } from "next/cache";
 import { precioEnvioPara } from "@/lib/envio";
 import { atribucionDesdeRequest, conAtribucion } from "@/lib/metaAtribucion";
 import { borrarCarrito } from "@/lib/carritosServidor";
+import { conCodigo, marcaCodigo } from "@/lib/codigos";
+import { codigoDelPedido } from "@/lib/codigosServidor";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request) {
   noStore();
   try {
-    const { items, comprador, parches, carritoId } = await request.json();
+    const { items: itemsRecibidos, comprador, parches, carritoId, codigo: codigoTexto } = await request.json();
     const parchesArr = Array.isArray(parches) ? parches : [];
+
+    // Código de descuento: se valida acá y se SUMA al descuento por
+    // transferencia (se aplica sobre el precio con transferencia, lib/codigos.js)
+    const { codigo, error: errorCodigo } = await codigoDelPedido(codigoTexto);
+    if (errorCodigo) return Response.json({ error: errorCodigo, codigoInvalido: true }, { status: 400 });
+    const items = codigo
+      ? itemsRecibidos.map((i) => {
+          const sinCodigo = Number(i.precioTransf ?? i.precio);
+          return { ...i, precioTransf: conCodigo(sinCodigo, codigo.porcentaje), precioTransfSinCodigo: sinCodigo };
+        })
+      : itemsRecibidos;
 
     // El envío y la estampa se calculan acá con los valores de configuración
     // (no se confía en lo que manda el navegador), igual que en el checkout.
@@ -41,7 +54,7 @@ export async function POST(request) {
       codigo_postal: comprador.codigoPostal ?? "",
       // Al final van los datos para que Meta atribuya la compra (ver lib/metaAtribucion.js)
       observaciones: conAtribucion(
-        `[TRANSFERENCIA]${parchesArr.length ? ` [PARCHES ESTAMPADOS → ${parchesTxt}]` : ""} ${comprador.observaciones ?? ""}`.trim(),
+        `[TRANSFERENCIA]${codigo ? ` ${marcaCodigo(codigo)}` : ""}${parchesArr.length ? ` [PARCHES ESTAMPADOS → ${parchesTxt}]` : ""} ${comprador.observaciones ?? ""}`.trim(),
         atribucionDesdeRequest(request)
       ),
       items,
