@@ -101,6 +101,9 @@ export default function Footer() {
           >
             Sitio web desarrollado por koda
           </a>
+          <p className="text-xs font-bold italic text-black mt-1">
+            Página web desarrollada por Gaspar Almerares
+          </p>
         </div>
 
       </div>
