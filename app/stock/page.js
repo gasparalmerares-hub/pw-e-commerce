@@ -9,6 +9,7 @@ import { FaChevronDown, FaChevronUp, FaFilter } from "react-icons/fa";
 import { MAX_CUOTAS } from "@/lib/cuotas";
 import SkeletonCard from "@/components/SkeletonCard";
 import { useVolverAlListado } from "@/lib/useVolverAlListado";
+import { usePrecioTachadoStock, tachadoPara } from "@/lib/precioTachado";
 
 function formatearPrecio(precio) {
   return "$" + precio.toLocaleString("es-AR");
@@ -62,6 +63,7 @@ export default function StockPage() {
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [visible, setVisible] = useState(12);
+  const precioTachado = usePrecioTachadoStock();
 
   // Al volver de un producto, retomar el mismo scroll, filtros y cantidad cargada
   const guardarPosicion = useVolverAlListado("stock", {
@@ -211,6 +213,9 @@ export default function StockPage() {
                         ))}
                       </div>
                       <div className="mt-auto flex flex-col gap-0.5">
+                        {tachadoPara(producto.precio, precioTachado) && (
+                          <p className="text-gray-400 line-through text-xs">{formatearPrecio(precioTachado)}</p>
+                        )}
                         <p className="text-orange-500 font-bold text-sm md:text-base">{formatearPrecio(producto.precio)}</p>
                         {producto.descuento_transferencia > 0 && (
                           <p className="text-green-700 text-xs font-semibold">

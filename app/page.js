@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import { usePrecioTachadoStock, tachadoPara } from "@/lib/precioTachado";
 import FadeIn from "@/components/FadeIn";
 import { FaHeart, FaStar, FaShippingFast, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
@@ -73,7 +74,7 @@ function AnimatedCounter({ target, suffix = "" }) {
 }
 
 // Carrusel con loop bidireccional (prepend último + append primero)
-function Carousel({ items }) {
+function Carousel({ items, precioTachado = 0 }) {
   const total    = items.length;
   // [último, ...todos, primero] — arrancamos en idx=1 (el real primer item)
   const extItems = [items[total - 1], ...items, items[0]];
@@ -180,6 +181,9 @@ function Carousel({ items }) {
                 Rugby
               </span>
               <h3 className="font-bold text-gray-900 text-base md:text-lg leading-tight line-clamp-2">{producto.nombre}</h3>
+              {tachadoPara(producto.precio, precioTachado) && (
+                <p className="text-gray-400 line-through text-sm">{formatearPrecio(precioTachado)}</p>
+              )}
               <p className="text-orange-500 font-extrabold text-xl">{formatearPrecio(producto.precio)}</p>
               <Link
                 href={`/stock/${producto.id}`}
@@ -229,6 +233,7 @@ export default function HomePage() {
   const [destacados,     setDestacados]     = useState([]);
   const [modelosCount,   setModelosCount]   = useState(MODELOS_FALLBACK);
   const [vendidasCount,  setVendidasCount]  = useState(VENDIDAS_BASE);
+  const precioTachado = usePrecioTachadoStock();
 
   useEffect(() => {
     supabase
@@ -365,8 +370,8 @@ export default function HomePage() {
           <section className="mb-12 md:mb-16">
             <h2 className="text-xl md:text-2xl font-bold mb-6 text-gray-900">Productos disponibles para entrega inmediata</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {destacados.slice(0, 2).length > 0 && <Carousel items={destacados.slice(0, 2)} />}
-              {destacados.slice(2, 4).length > 0 && <Carousel items={destacados.slice(2, 4)} />}
+              {destacados.slice(0, 2).length > 0 && <Carousel items={destacados.slice(0, 2)} precioTachado={precioTachado} />}
+              {destacados.slice(2, 4).length > 0 && <Carousel items={destacados.slice(2, 4)} precioTachado={precioTachado} />}
             </div>
             <div className="mt-6 text-center">
               <Link href="/stock" className="inline-block bg-gray-100 text-gray-900 border border-gray-300 font-semibold px-8 py-3 rounded-full hover:bg-orange-500 hover:text-black hover:border-orange-500 transition-colors">
