@@ -5,6 +5,10 @@ import { supabaseAdmin } from "@/lib/supabase";
 // por dia a Supabase y reducimos Edge Requests.
 const CACHE = { "Cache-Control": "public, s-maxage=300, max-age=300, stale-while-revalidate=600" };
 
+// Sin esto Next.js arma la respuesta una sola vez al publicar y los cambios
+// de Admin → Configuración no llegaban a la web hasta el siguiente deploy.
+export const revalidate = 300;
+
 // Datos internos del panel que también viven en configuracion y no son públicos
 const CLAVES_PRIVADAS = ["carritos_contactados", "carritos_mail_enviado", "codigos_descuento"];
 
