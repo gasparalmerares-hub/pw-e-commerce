@@ -9,7 +9,7 @@ import { FaChevronRight, FaSpinner, FaWhatsapp, FaShareSquare } from "react-icon
 import { trackViewContent, trackAddToCart } from "@/lib/fbpixel";
 import CuotasMP from "@/components/CuotasMP";
 import EnvioInfo from "@/components/EnvioInfo";
-import { usePrecioTachadoStock, tachadoPara } from "@/lib/precioTachado";
+import { usePrecioTachadoStock, tachadoPara, descuentoPct } from "@/lib/precioTachado";
 
 const WHATSAPP_ADMIN = "5492216220145";
 
@@ -189,7 +189,12 @@ export default function StockDetalleClient({ params }) {
           {producto.descuento_transferencia > 0 ? (
             <div className="flex flex-col gap-1">
               {tachadoPara(producto.precio, precioTachado) && (
-                <p className="text-gray-400 line-through text-lg">{formatearPrecio(precioTachado)}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-gray-400 line-through text-lg">{formatearPrecio(precioTachado)}</p>
+                  <span className="bg-red-600 text-white text-xs font-extrabold px-2 py-0.5 rounded-full">
+                    −{descuentoPct(producto.precio, precioTachado)}% · Ahorrás {formatearPrecio(precioTachado - producto.precio)}
+                  </span>
+                </div>
               )}
               <div className="flex items-baseline gap-3">
                 <p className="text-orange-500 text-2xl font-bold">{formatearPrecio(producto.precio)}</p>
@@ -234,6 +239,12 @@ export default function StockDetalleClient({ params }) {
                 );
               })}
             </div>
+            {/* Quedan pocas: stock real del talle elegido */}
+            {talleSeleccionado && stockTalle > 0 && stockTalle <= 2 && (
+              <p className="mt-2 text-sm font-bold text-orange-600">
+                {stockTalle === 1 ? `¡Queda solo 1 en ${esColor ? "este color" : `talle ${talleSeleccionado}`}!` : `¡Quedan solo 2 en ${esColor ? "este color" : `talle ${talleSeleccionado}`}!`}
+              </p>
+            )}
           </div>
 
           <div>

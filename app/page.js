@@ -4,9 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { usePrecioTachadoStock, tachadoPara } from "@/lib/precioTachado";
+import { usePrecioTachadoStock, tachadoPara, descuentoPct, maxDescuentoTransferencia } from "@/lib/precioTachado";
 import FadeIn from "@/components/FadeIn";
-import { FaHeart, FaStar, FaShippingFast, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FaHeart, FaStar, FaShippingFast, FaChevronLeft, FaChevronRight, FaBolt } from "react-icons/fa";
 
 function formatearPrecio(precio) {
   return "$" + precio.toLocaleString("es-AR");
@@ -175,6 +175,11 @@ function Carousel({ items, precioTachado = 0 }) {
                 sizes="(max-width: 768px) 100vw, 50vw"
                 loading="lazy"
               />
+              {descuentoPct(producto.precio, precioTachado) && (
+                <span className="absolute top-3 left-3 bg-red-600 text-white text-sm font-extrabold px-2.5 py-1 rounded-full">
+                  −{descuentoPct(producto.precio, precioTachado)}%
+                </span>
+              )}
             </div>
             <div className="p-4 md:p-6 flex flex-col gap-2">
               <span className="text-xs font-medium px-2 py-1 rounded-full bg-orange-500 text-black capitalize self-start">
@@ -234,11 +239,12 @@ export default function HomePage() {
   const [modelosCount,   setModelosCount]   = useState(MODELOS_FALLBACK);
   const [vendidasCount,  setVendidasCount]  = useState(VENDIDAS_BASE);
   const precioTachado = usePrecioTachadoStock();
+  const ofertaStock = maxDescuentoTransferencia(destacados, precioTachado);
 
   useEffect(() => {
     supabase
       .from("productos_stock")
-      .select("id, nombre, precio, imagen")
+      .select("id, nombre, precio, imagen, descuento_transferencia")
       .eq("destacado", true)
       .limit(4)
       .then(({ data }) => {
@@ -296,18 +302,24 @@ export default function HomePage() {
           <p className="text-base md:text-2xl text-orange-500 font-semibold mb-10 max-w-xs md:max-w-none">
             Las mejores camisetas de rugby de Argentina
           </p>
+          {ofertaStock && (
+            <Link href="/stock" className="mb-5 inline-flex items-center gap-2 bg-green-600 text-white text-sm md:text-base font-bold px-4 py-2 rounded-full hover:bg-green-500 transition-colors">
+              <FaBolt className="text-yellow-300" />
+              Stock en oferta: hasta {ofertaStock}% OFF y envío en 24 a 72 hs
+            </Link>
+          )}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-xs sm:max-w-none">
             <Link
-              href="/catalogo"
+              href="/stock"
               className="w-full sm:w-auto text-center bg-orange-500 text-black font-bold px-8 md:px-10 py-3.5 rounded-full text-base md:text-lg hover:bg-orange-400 transition-colors active:scale-95 shadow-lg shadow-orange-500/30"
             >
-              Ver catálogo
+              Ver stock disponible
             </Link>
             <Link
-              href="/stock"
+              href="/catalogo"
               className="w-full sm:w-auto text-center border-2 border-white/80 text-white font-bold px-8 md:px-10 py-3 rounded-full text-base md:text-lg hover:bg-white hover:text-black transition-colors active:scale-95"
             >
-              Ver stock disponible
+              Ver catálogo
             </Link>
             <Link
               href="/guia-de-talles"
@@ -341,6 +353,27 @@ export default function HomePage() {
 
       <div className="max-w-5xl mx-auto px-4 py-10 md:py-12">
 
+        {/* Carrusel de productos destacados */}
+        {destacados.length > 0 && (
+        <FadeIn>
+          <section className="mb-12 md:mb-16">
+            <div className="mb-6">
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900">En stock: te la enviamos en 24 a 72 hs</h2>
+              <p className="text-gray-600 text-sm md:text-base mt-1">Al mismo precio que por encargo, sin esperar 20 a 40 días.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {destacados.slice(0, 2).length > 0 && <Carousel items={destacados.slice(0, 2)} precioTachado={precioTachado} />}
+              {destacados.slice(2, 4).length > 0 && <Carousel items={destacados.slice(2, 4)} precioTachado={precioTachado} />}
+            </div>
+            <div className="mt-6 text-center">
+              <Link href="/stock" className="inline-block bg-gray-100 text-gray-900 border border-gray-300 font-semibold px-8 py-3 rounded-full hover:bg-orange-500 hover:text-black hover:border-orange-500 transition-colors">
+                Ver todos los disponibles
+              </Link>
+            </div>
+          </section>
+        </FadeIn>
+        )}
+
         {/* Quiénes Somos */}
         <FadeIn>
           <section className="bg-gray-50 rounded-2xl text-gray-900 p-6 md:p-10 mb-12 md:mb-16 transition-transform duration-300 hover:-translate-y-1 border border-gray-200">
@@ -363,24 +396,6 @@ export default function HomePage() {
             </div>
           </section>
         </FadeIn>
-
-        {/* Carrusel de productos destacados */}
-        {destacados.length > 0 && (
-        <FadeIn>
-          <section className="mb-12 md:mb-16">
-            <h2 className="text-xl md:text-2xl font-bold mb-6 text-gray-900">Productos disponibles para entrega inmediata</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {destacados.slice(0, 2).length > 0 && <Carousel items={destacados.slice(0, 2)} precioTachado={precioTachado} />}
-              {destacados.slice(2, 4).length > 0 && <Carousel items={destacados.slice(2, 4)} precioTachado={precioTachado} />}
-            </div>
-            <div className="mt-6 text-center">
-              <Link href="/stock" className="inline-block bg-gray-100 text-gray-900 border border-gray-300 font-semibold px-8 py-3 rounded-full hover:bg-orange-500 hover:text-black hover:border-orange-500 transition-colors">
-                Ver todos los disponibles
-              </Link>
-            </div>
-          </section>
-        </FadeIn>
-        )}
 
         {/* Diferencia Stock vs Catálogo */}
         <FadeIn>

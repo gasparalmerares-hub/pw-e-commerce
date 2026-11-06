@@ -19,9 +19,9 @@ import {
 
 const links = [
   { href: "/",               label: "Inicio",          icon: FaHome },
+  { href: "/stock",          label: "Stock",           icon: FaStore, destacado: true },
   { href: "/catalogo",       label: "Catálogo",        icon: FaTshirt },
   { href: "/kids",           label: "Niños",           icon: FaChild },
-  { href: "/stock",          label: "Stock",           icon: FaStore },
   { href: "/mayorista",      label: "Mayorista",       icon: FaBoxes },
   { href: "/guia-de-talles", label: "Guía de Talles",  icon: FaRuler },
   { href: "/contacto",       label: "Contacto",        icon: FaEnvelope },
@@ -100,17 +100,18 @@ export default function Navbar() {
         {/* Desktop: links + carrito */}
         <div className="hidden md:flex items-center gap-6">
           <ul className="flex gap-3 lg:gap-6 list-none">
-            {links.map(({ href, label, icon: Icon }) => (
+            {links.map(({ href, label, icon: Icon, destacado }) => (
               <li key={href}>
                 <Link
                   href={href}
-                  className={`text-sm lg:text-base xl:text-lg transition-colors ${
+                  className={`inline-flex items-center gap-1.5 text-sm lg:text-base xl:text-lg transition-colors ${
                     pathname === href
                       ? "text-orange-500 font-semibold"
                       : "hover:text-orange-400 opacity-90"
                   }`}
                 >
                   {label}
+                  {destacado && <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" title="Entrega inmediata" />}
                 </Link>
               </li>
             ))}
@@ -148,7 +149,7 @@ export default function Navbar() {
         }`}
       >
         <ul className="flex flex-col py-2">
-          {links.map(({ href, label, icon: Icon }) => (
+          {links.map(({ href, label, icon: Icon, destacado }) => (
             <li key={href}>
               <Link
                 href={href}
@@ -160,6 +161,7 @@ export default function Navbar() {
               >
                 <Icon className="text-xl shrink-0" />
                 {label}
+                {destacado && <span className="bg-green-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">Entrega inmediata</span>}
               </Link>
             </li>
           ))}

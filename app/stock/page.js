@@ -9,7 +9,7 @@ import { FaChevronDown, FaChevronUp, FaFilter } from "react-icons/fa";
 import { MAX_CUOTAS } from "@/lib/cuotas";
 import SkeletonCard from "@/components/SkeletonCard";
 import { useVolverAlListado } from "@/lib/useVolverAlListado";
-import { usePrecioTachadoStock, tachadoPara } from "@/lib/precioTachado";
+import { usePrecioTachadoStock, tachadoPara, descuentoPct } from "@/lib/precioTachado";
 
 function formatearPrecio(precio) {
   return "$" + precio.toLocaleString("es-AR");
@@ -198,9 +198,21 @@ export default function StockPage() {
                         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
                         loading="lazy"
                       />
-                      <span className="absolute top-2 right-2 bg-green-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                        Stock: {stockTotal(producto)}
-                      </span>
+                      {descuentoPct(producto.precio, precioTachado) && (
+                        <span className="absolute top-2 left-2 bg-red-600 text-white text-xs font-extrabold px-2 py-0.5 rounded-full">
+                          −{descuentoPct(producto.precio, precioTachado)}%
+                        </span>
+                      )}
+                      {/* Con 3 o menos se avisa que quedan pocas (es stock real) */}
+                      {stockTotal(producto) <= 3 ? (
+                        <span className="absolute top-2 right-2 bg-orange-500 text-black text-xs font-extrabold px-2 py-0.5 rounded-full">
+                          {stockTotal(producto) === 1 ? "¡Última!" : `¡Últimas ${stockTotal(producto)}!`}
+                        </span>
+                      ) : (
+                        <span className="absolute top-2 right-2 bg-green-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                          Stock: {stockTotal(producto)}
+                        </span>
+                      )}
                     </div>
                     <div className="p-3 md:p-4 flex flex-col flex-1 gap-2">
                       <span className={`text-xs font-medium px-2 py-1 rounded-full self-start ${badgeTipo[producto.tipo]}`}>
