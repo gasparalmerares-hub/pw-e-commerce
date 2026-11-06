@@ -8,6 +8,9 @@ import { usePrecioTachadoStock, tachadoPara, descuentoPct, maxDescuentoTransfere
 import FadeIn from "@/components/FadeIn";
 import { FaHeart, FaStar, FaShippingFast, FaChevronLeft, FaChevronRight, FaBolt } from "react-icons/fa";
 
+// Porcentaje con el que aparece el cartel de oferta antes de cargar los datos
+const OFERTA_INICIAL = 20;
+
 function formatearPrecio(precio) {
   return "$" + precio.toLocaleString("es-AR");
 }
@@ -236,10 +239,15 @@ const MODELOS_FALLBACK = 19;
 
 export default function HomePage() {
   const [destacados,     setDestacados]     = useState([]);
+  const [destacadosListos, setDestacadosListos] = useState(false);
   const [modelosCount,   setModelosCount]   = useState(MODELOS_FALLBACK);
   const [vendidasCount,  setVendidasCount]  = useState(VENDIDAS_BASE);
   const precioTachado = usePrecioTachadoStock();
-  const ofertaStock = maxDescuentoTransferencia(destacados, precioTachado);
+  // El cartel de oferta se muestra de entrada con el valor habitual (20%) y se
+  // ajusta (o se oculta si ya no hay descuento) cuando cargan los datos.
+  const ofertaStock = destacadosListos && precioTachado !== null
+    ? maxDescuentoTransferencia(destacados, precioTachado)
+    : OFERTA_INICIAL;
 
   useEffect(() => {
     supabase
@@ -249,6 +257,7 @@ export default function HomePage() {
       .limit(4)
       .then(({ data }) => {
         if (data && data.length > 0) setDestacados(data);
+        setDestacadosListos(true);
       });
 
     // Cuenta dinámica de modelos en catálogo. Traemos solo los IDs y
@@ -310,16 +319,10 @@ export default function HomePage() {
           )}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-xs sm:max-w-none">
             <Link
-              href="/stock"
+              href="/catalogo"
               className="w-full sm:w-auto text-center bg-orange-500 text-black font-bold px-8 md:px-10 py-3.5 rounded-full text-base md:text-lg hover:bg-orange-400 transition-colors active:scale-95 shadow-lg shadow-orange-500/30"
             >
-              Ver stock disponible
-            </Link>
-            <Link
-              href="/catalogo"
-              className="w-full sm:w-auto text-center border-2 border-white/80 text-white font-bold px-8 md:px-10 py-3 rounded-full text-base md:text-lg hover:bg-white hover:text-black transition-colors active:scale-95"
-            >
-              Ver catálogo
+              Catálogo completo
             </Link>
             <Link
               href="/guia-de-talles"
