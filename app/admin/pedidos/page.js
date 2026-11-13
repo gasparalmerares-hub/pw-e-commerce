@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FaSpinner, FaChevronDown, FaChevronUp, FaBox, FaTimes, FaCopy, FaCheck, FaSearch } from "react-icons/fa";
+import { FaSpinner, FaChevronDown, FaChevronUp, FaBox, FaTimes, FaCopy, FaCheck, FaSearch, FaWhatsapp } from "react-icons/fa";
+import { whatsappDe } from "@/lib/carritos";
 
 const ESTADOS = ["pendiente_transferencia", "pagado", "enviado", "entregado", "cancelado"];
 
@@ -217,12 +218,28 @@ function DatosEnvio({ pedido }) {
   ].filter(([, v]) => v);
 
   const todo = campos.map(([l, v]) => `${l}: ${v}`).join("\n");
+  // Abre el chat de WhatsApp del cliente sin tener que agendarlo
+  const whatsapp = whatsappDe(pedido.telefono);
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-gray-500 font-medium">Datos de envío</p>
-        <BotonCopiar texto={todo} label="Copiar todo" />
+        <div className="flex items-center gap-2">
+          {whatsapp && (
+            <a
+              href={`https://wa.me/${whatsapp}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-700 transition-colors"
+            >
+              <FaWhatsapp className="text-sm" />
+              WhatsApp
+            </a>
+          )}
+          <BotonCopiar texto={todo} label="Copiar todo" />
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
         {campos.map(([label, valor]) => (
