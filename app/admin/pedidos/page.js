@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FaSpinner, FaChevronDown, FaChevronUp, FaBox, FaTimes, FaCopy, FaCheck } from "react-icons/fa";
+import { FaSpinner, FaChevronDown, FaChevronUp, FaBox, FaTimes, FaCopy, FaCheck, FaSearch } from "react-icons/fa";
 
 const ESTADOS = ["pendiente_transferencia", "pagado", "enviado", "entregado", "cancelado"];
+
+// Para buscar sin importar mayúsculas ni tildes ("Martín" = "martin")
+const normalizar = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
 const badgeEstado = {
   pendiente:              "bg-gray-200 text-gray-600",
@@ -248,6 +251,7 @@ export default function AdminPedidosPage() {
   const [pedidos,         setPedidos]         = useState([]);
   const [cargando,        setCargando]        = useState(true);
   const [filtro,          setFiltro]          = useState("todos");
+  const [busqueda,        setBusqueda]        = useState("");
   const [ultimaActualiz,  setUltimaActualiz]  = useState(null);
 
   async function fetchPedidos(silencioso = false) {
@@ -279,9 +283,15 @@ export default function AdminPedidosPage() {
     setPedidos((prev) => prev.filter((p) => p.id !== id));
   }
 
-  const pedidosFiltrados = filtro === "todos"
-    ? pedidos
-    : pedidos.filter((p) => p.estado === filtro);
+  // Búsqueda por nombre del cliente (también encuentra por email o teléfono)
+  const texto = normalizar(busqueda);
+  const digitos = busqueda.replace(/\D/g, "");
+  const pedidosFiltrados = pedidos
+    .filter((p) => filtro === "todos" || p.estado === filtro)
+    .filter((p) => !texto ||
+      normalizar(p.nombre).includes(texto) ||
+      normalizar(p.email).includes(texto) ||
+      (digitos.length >= 4 && String(p.telefono ?? "").replace(/\D/g, "").includes(digitos)));
 
   return (
     <div>
@@ -301,6 +311,19 @@ export default function AdminPedidosPage() {
           </button>
           <span className="text-sm text-gray-400">{pedidos.length} total</span>
         </div>
+      </div>
+
+      {/* Buscar cliente */}
+      <div className="relative mb-4 max-w-md">
+        <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+        <input
+          type="search"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar por nombre del cliente"
+          aria-label="Buscar por nombre del cliente"
+          className="w-full bg-white border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-orange-500"
+        />
       </div>
 
       {/* Filtro por estado */}
@@ -324,7 +347,9 @@ export default function AdminPedidosPage() {
         </div>
       ) : pedidosFiltrados.length === 0 ? (
         <p className="text-center text-gray-500 py-20">
-          {filtro === "todos" ? "No hay pedidos todavía." : `No hay pedidos con estado "${filtro}".`}
+          {busqueda.trim()
+            ? `No hay pedidos de "${busqueda.trim()}"${filtro === "todos" ? "" : ` con estado "${filtro}"`}.`
+            : filtro === "todos" ? "No hay pedidos todavía." : `No hay pedidos con estado "${filtro}".`}
         </p>
       ) : (
         <div className="flex flex-col gap-3">
